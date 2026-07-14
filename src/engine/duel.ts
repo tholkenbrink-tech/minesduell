@@ -1,0 +1,240 @@
+import type { Board, GameEvent, GameSettings, Player, PlayerStats, Position } from './types';
+import { createPlayerStats } from './types';
+import { createEmptyBoard, isBoardFullyRevealed } from './board';
+import { revealCell, toggleFlag } from './reveal';
+
+export interface DuelState {
+  mode: 'duel';
+  settings: GameSettings;
+  board: Board;
+  players: Player[];
+  stats: Record<string, PlayerStats>;
+  activePlayerIndex: number;
+  turnActionsCount: number;
+  turnStartedAt: number;
+  scoredMinePositions: Set<string>;
+  eliminationOrder: string[];
+  status: 'playing' | 'completed';
+  winnerId: string | null;
+  log: GameEvent[];
+}
+
+export function createDuelMatch(settings: GameSettings, players: Player[], seed: number): DuelState {
+  const board = createEmptyBoard(settings.board.width, settings.board.height, settings.board.mines, seed);
+  const lives = settings.duelVariant === 'survival' ? 3 : Infinity;
+  const stats: Record<string, PlayerStats> = {};
+  for (const p of players) stats[p.id] = createPlayerStats(p.id, lives);
+  return {
+    mode: 'duel',
+    settings,
+    board,
+    players,
+    stats,
+    activePlayerIndex: 0,
+    turnActionsCount: 0,
+    turnStartedAt: Date.now(),
+    scoredMinePositions: new Set(),
+    eliminationOrder: [],
+    status: 'playing',
+    winnerId: null,
+    log: [],
+  };
+}
+
+export function duelTargetCount(state: DuelState): number {
+  const { duelTarget, board } = state.settings;
+  if (duelTarget.type === 'first-to') return duelTarget.count ?? 10;
+  if (duelTarget.type === 'majority') return Math.floor(board.mines / 2) + 1;
+  return board.mines; // complete-board: informational only
+}
+
+function activePlayer(state: DuelState): Player {
+  return state.players[state.activePlayerIndex];
+}
+
+function posKey(p: Position): string {
+  return `${p.x},${p.y}`;
+}
+
+/** Determines the winner among remaining (non-eliminated) players by score tie-break. */
+function rankPlayers(state: DuelState): Player[] {
+  return [...state.players].sort((a, b) => {
+    const sa = state.stats[a.id];
+    const sb = state.stats[b.id];
+    if (sb.minesDetected !== sa.minesDetected) return sb.minesDetected - sa.minesDetected;
+    if (sa.incorrectFlags !== sb.incorrectFlags) return sa.incorrectFlags - sb.incorrectFlags;
+    if (sa.minesTriggered !== sb.minesTriggered) return sa.minesTriggered - sb.minesTriggered;
+    if (sb.safeCellsRevealed !== sa.safeCellsRevealed) return sb.safeCellsRevealed - sa.safeCellsRevealed;
+    return 0;
+  });
+}
+
+function finishGame(state: DuelState, events: GameEvent[]): void {
+  const ranked = rankPlayers(state);
+  state.status = 'completed';
+  state.winnerId = ranked[0]?.id ?? null;
+  events.push({ type: 'GAME_COMPLETED', playerId: state.winnerId ?? undefined });
+}
+
+function nextAlivePlayerIndex(state: DuelState, from: number): number {
+  const n = state.players.length;
+  for (let i = 1; i <= n; i++) {
+    const idx = (from + i) % n;
+    if (!state.stats[state.players[idx].id].eliminated) return idx;
+  }
+  return from;
+}
+
+function endTurn(state: DuelState, events: GameEvent[]): void {
+  const player = activePlayer(state);
+  state.stats[player.id].turnDurationsMs.push(Date.now() - state.turnStartedAt);
+  const alive = state.players.filter((p) => !state.stats[p.id].eliminated);
+  if (alive.length <= 1 && state.settings.duelVariant === 'survival') {
+    finishGame(state, events);
+    return;
+  }
+  state.activePlayerIndex = nextAlivePlayerIndex(state, state.activePlayerIndex);
+  state.turnActionsCount = 0;
+  state.turnStartedAt = Date.now();
+  events.push({ type: 'TURN_ENDED', playerId: player.id });
+}
+
+function loseLife(state: DuelState, playerId: string, events: GameEvent[]): void {
+  if (state.settings.duelVariant !== 'survival') return;
+  const s = state.stats[playerId];
+  s.lives -= 1;
+  events.push({ type: 'LIFE_LOST', playerId, data: { livesRemaining: s.lives } });
+  if (s.lives <= 0 && !s.eliminated) {
+    s.eliminated = true;
+    state.eliminationOrder.push(playerId);
+    events.push({ type: 'PLAYER_ELIMINATED', playerId });
+  }
+}
+
+export interface DuelActionResult {
+  state: DuelState;
+  events: GameEvent[];
+}
+
+export function applyDuelReveal(state: DuelState, pos: Position): DuelActionResult {
+  const events: GameEvent[] = [];
+  if (state.status !== 'playing') return { state, events };
+  const player = activePlayer(state);
+  const stats = state.stats[player.id];
+
+  const result = revealCell(state.board, pos, player.id);
+  events.push(...result.events);
+  state.turnActionsCount += 1;
+
+  let turnEnds = false;
+
+  if (result.hitMine) {
+    stats.minesTriggered += 1;
+    stats.currentStreak = 0;
+    loseLife(state, player.id, events);
+    turnEnds = true;
+  } else if (result.newlyRevealedSafe.length > 0) {
+    stats.safeCellsRevealed += result.newlyRevealedSafe.length;
+    const wasCascade = result.newlyRevealedSafe.length > 1;
+    if (!wasCascade) turnEnds = true; // plain numbered reveal passes the turn
+  }
+
+  if (state.settings.duelVariant === 'classic') turnEnds = true;
+
+  if (
+    state.settings.duelMaxActionsPerTurn > 0 &&
+    state.turnActionsCount >= state.settings.duelMaxActionsPerTurn
+  ) {
+    turnEnds = true;
+  }
+
+  if (isBoardFullyRevealed(state.board)) {
+    finishGame(state, events);
+    state.log.push(...events);
+    return { state, events };
+  }
+
+  if (turnEnds && state.status === 'playing') endTurn(state, events);
+
+  state.log.push(...events);
+  return { state, events };
+}
+
+export function applyDuelFlag(state: DuelState, pos: Position): DuelActionResult {
+  const events: GameEvent[] = [];
+  if (state.status !== 'playing') return { state, events };
+  const player = activePlayer(state);
+  const stats = state.stats[player.id];
+  const key = posKey(pos);
+
+  const result = toggleFlag(state.board, pos, player.id);
+  events.push(...result.events);
+  state.turnActionsCount += 1;
+
+  let turnEnds = state.settings.duelVariant === 'classic';
+
+  if (result.correct === true) {
+    if (!state.scoredMinePositions.has(key)) {
+      stats.minesDetected += 1;
+      state.scoredMinePositions.add(key);
+    }
+    // Correct flag retains the turn (unless classic variant), and cannot be
+    // farmed by re-toggling: only counted once via scoredMinePositions above.
+  } else if (result.correct === false) {
+    stats.incorrectFlags += 1;
+    stats.currentStreak = 0;
+    loseLife(state, player.id, events);
+    turnEnds = true;
+  }
+  // result.correct === null means a flag was removed; no scoring change, turn continues.
+
+  if (
+    state.settings.duelMaxActionsPerTurn > 0 &&
+    state.turnActionsCount >= state.settings.duelMaxActionsPerTurn
+  ) {
+    turnEnds = true;
+  }
+
+  const targetCount = duelTargetCount(state);
+  if (state.settings.duelTarget.type !== 'complete-board' && stats.minesDetected >= targetCount) {
+    state.status = 'completed';
+    state.winnerId = player.id;
+    events.push({ type: 'GAME_COMPLETED', playerId: player.id });
+    state.log.push(...events);
+    return { state, events };
+  }
+
+  if (isBoardFullyRevealed(state.board)) {
+    finishGame(state, events);
+    state.log.push(...events);
+    return { state, events };
+  }
+
+  if (turnEnds && state.status === 'playing') endTurn(state, events);
+
+  state.log.push(...events);
+  return { state, events };
+}
+
+export function handleDuelTimerExpired(state: DuelState): DuelActionResult {
+  const events: GameEvent[] = [];
+  if (state.status !== 'playing') return { state, events };
+  const player = activePlayer(state);
+  events.push({ type: 'TIMER_EXPIRED', playerId: player.id });
+
+  const behavior = state.settings.duelTimer.behavior;
+  if (behavior === 'sudden-death') {
+    const others = state.players.filter((p) => p.id !== player.id);
+    state.status = 'completed';
+    state.winnerId = others[0]?.id ?? null;
+    events.push({ type: 'GAME_COMPLETED', playerId: state.winnerId ?? undefined });
+  } else if (behavior === 'elimination') {
+    loseLife(state, player.id, events);
+    if (state.status === 'playing') endTurn(state, events);
+  } else {
+    endTurn(state, events);
+  }
+
+  state.log.push(...events);
+  return { state, events };
+}

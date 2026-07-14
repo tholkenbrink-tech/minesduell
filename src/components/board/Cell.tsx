@@ -1,0 +1,93 @@
+import { memo } from 'react';
+import type { Cell as CellType, Player } from '../../engine/types';
+
+const NUMBER_COLOR_VAR = ['', 'var(--md-num-1)', 'var(--md-num-2)', 'var(--md-num-3)', 'var(--md-num-4)', 'var(--md-num-5)', 'var(--md-num-6)', 'var(--md-num-7)', 'var(--md-num-8)'];
+
+const THEME_VAR: Record<Player['theme'], string> = {
+  coral: 'var(--md-player-coral)',
+  teal: 'var(--md-player-teal)',
+  violet: 'var(--md-player-violet)',
+  amber: 'var(--md-player-amber)',
+};
+
+interface CellProps {
+  cell: CellType;
+  size: number;
+  players: Player[];
+  activePlayerId?: string;
+  orientationDeg: 0 | 180;
+  focused?: boolean;
+  isPeek?: boolean;
+  peekSafe?: boolean;
+}
+
+function CellImpl({ cell, size, players, orientationDeg, focused, isPeek, peekSafe }: CellProps) {
+  const owner = cell.flaggedBy ? players.find((p) => p.id === cell.flaggedBy) : undefined;
+
+  let bg = 'var(--md-cell-hidden)';
+  let content: React.ReactNode = null;
+
+  if (cell.revealed) {
+    if (cell.mine) {
+      bg = 'var(--md-cell-mine-bg)';
+      content = <span aria-hidden>💣</span>;
+    } else {
+      bg = 'var(--md-cell-revealed)';
+      if (cell.adjacent > 0) {
+        content = (
+          <span aria-hidden style={{ color: NUMBER_COLOR_VAR[cell.adjacent], fontWeight: 800 }}>
+            {cell.adjacent}
+          </span>
+        );
+      }
+    }
+  } else if (cell.flagged) {
+    bg = 'var(--md-cell-flag-bg)';
+    content = (
+      <span className="relative flex items-center justify-center" aria-hidden>
+        <span>🚩</span>
+        {owner && (
+          <span
+            className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center rounded-full text-[7px] font-bold text-white"
+            style={{ background: THEME_VAR[owner.theme] }}
+          >
+            {owner.name.charAt(0).toUpperCase()}
+          </span>
+        )}
+      </span>
+    );
+  } else if (isPeek) {
+    bg = peekSafe ? 'var(--md-cell-revealed)' : 'var(--md-cell-mine-bg)';
+    content = <span aria-hidden>{peekSafe ? '·' : '!'}</span>;
+  }
+
+  const label = cell.revealed
+    ? cell.mine
+      ? 'mine'
+      : cell.adjacent > 0
+        ? `${cell.adjacent} adjacent mines`
+        : 'empty'
+    : cell.flagged
+      ? 'flagged'
+      : 'hidden';
+
+  return (
+    <div
+      role="gridcell"
+      aria-label={label}
+      data-focused={focused || undefined}
+      className="flex select-none items-center justify-center border border-black/5 text-sm"
+      style={{
+        width: size,
+        height: size,
+        background: bg,
+        outline: focused ? '2px solid var(--md-accent)' : undefined,
+        outlineOffset: focused ? -2 : undefined,
+      }}
+    >
+      <span style={{ transform: `rotate(${orientationDeg}deg)`, display: 'inline-flex' }}>{content}</span>
+    </div>
+  );
+}
+
+export const Cell = memo(CellImpl);
