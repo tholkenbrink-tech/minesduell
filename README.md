@@ -48,3 +48,7 @@ React only consumes this engine through `src/store/useMatchStore.ts` (screen/flo
 ## Offline / PWA
 
 The app is registered as a PWA (`vite-plugin-pwa`, autoUpdate) with an offline-capable app shell. Install it from your browser's "Add to Home Screen" / install prompt on iPhone, iPad, or desktop — after the first load it works with no network connection.
+
+## Deployment
+
+Live at **https://minesduell.pages.dev**, hosted on Cloudflare Pages with native Git integration: every push to `main` triggers a Cloudflare build (`npm run build`, output `dist/`) and deploys it automatically. No secrets or CI config live in the repo — the build runs on Cloudflare's side. `.nvmrc` pins the build image to Node 22 (Vite 8 requires Node ≥ 20.19).
