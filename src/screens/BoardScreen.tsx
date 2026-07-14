@@ -225,8 +225,12 @@ export function BoardScreen() {
           <span className="text-sm font-semibold">💣 {countRemainingMines(duel.board)} left</span>
           {duel.settings.duelTimer.enabled && (
             <TurnTimer
+              // Reset on every action (turnActionsCount) as well as on turn
+              // change (activePlayerIndex) — so an actively-playing streak never
+              // times out. The timer only passes the turn when it runs out
+              // without the player acting.
               seconds={duel.settings.duelTimer.seconds}
-              resetKey={`${duel.activePlayerIndex}-${duel.turnStartedAt}`}
+              resetKey={`${duel.activePlayerIndex}-${duel.turnActionsCount}`}
               paused={paused || turnTransition.active}
               onExpire={expireTimer}
             />

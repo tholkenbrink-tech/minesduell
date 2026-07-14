@@ -117,6 +117,30 @@ describe('duel mode', () => {
     expect(state.activePlayerIndex).not.toBe(activeBefore);
   });
 
+  it('turnActionsCount increments per action and resets on turn change (drives timer reset)', () => {
+    const settings = defaultDuelSettings();
+    let state = createDuelMatch(settings, makePlayers(2), 3);
+    state = applyDuelReveal(state, { x: 0, y: 0 }).state; // first action of the turn
+    expect(state.turnActionsCount).toBe(1);
+
+    // Each correct action within the streak bumps the counter — the UI keys the
+    // turn timer off this, so every action resets the countdown.
+    const before = state.activePlayerIndex;
+    let expected = 1;
+    for (let i = 0; i < 2; i++) {
+      const numbered = firstSafeNumberedPosition(state, { x: 0, y: 0 });
+      applyDuelReveal(state, numbered);
+      expected += 1;
+      expect(state.turnActionsCount).toBe(expected);
+      expect(state.activePlayerIndex).toBe(before); // still same player's turn
+    }
+
+    // A mistake ends the turn; the next player starts fresh at 0.
+    applyDuelReveal(state, firstMinePosition(state));
+    expect(state.activePlayerIndex).not.toBe(before);
+    expect(state.turnActionsCount).toBe(0);
+  });
+
   it('classic variant always passes the turn, even on a correct flag', () => {
     const settings = { ...defaultDuelSettings(), duelVariant: 'classic' as const };
     let state = createDuelMatch(settings, makePlayers(2), 11);
