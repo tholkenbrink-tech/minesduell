@@ -16,13 +16,42 @@ function firstMinePosition(board: ReturnType<typeof createCoopMatch>['board']) {
 }
 
 describe('coop survival mode', () => {
-  it('rotates the active player after every action, correct or not', () => {
+  it('keeps the active player for up to 5 correct actions, then rotates', () => {
     const settings = defaultCoopSettings();
     let state = createCoopMatch(settings, makePlayers(3), 20);
-    state = applyCoopReveal(state, { x: 0, y: 0 }).state;
     const first = state.activePlayerIndex;
-    state = applyCoopReveal(state, { x: state.board.width - 1, y: state.board.height - 1 }).state;
+    state = applyCoopReveal(state, { x: 0, y: 0 }).state; // action 1 (generates board)
+    expect(state.turnActionsCount).toBe(1);
+    expect(state.activePlayerIndex).toBe(first);
+
+    // Collect non-mine cells to click for actions 2–5 (mistakes would rotate early).
+    const safe: { x: number; y: number }[] = [];
+    for (let y = 0; y < state.board.height && safe.length < 4; y++) {
+      for (let x = 0; x < state.board.width && safe.length < 4; x++) {
+        if (!state.board.cells[y][x].mine && !(x === 0 && y === 0)) safe.push({ x, y });
+      }
+    }
+    // actions 2, 3, 4 — still the same player
+    for (let i = 0; i < 3; i++) {
+      state = applyCoopReveal(state, safe[i]).state;
+      expect(state.activePlayerIndex).toBe(first);
+    }
+    // action 5 — rotates to the next player
+    state = applyCoopReveal(state, safe[3]).state;
     expect(state.activePlayerIndex).not.toBe(first);
+  });
+
+  it('rotates immediately when a player makes a mistake (before 5 actions)', () => {
+    const settings = defaultCoopSettings();
+    let state = createCoopMatch(settings, makePlayers(2), 30);
+    state = applyCoopReveal(state, { x: 0, y: 0 }).state; // action 1, safe
+    const before = state.activePlayerIndex;
+    // Find and reveal a mine on action 2 → mistake → immediate rotation.
+    let mine: { x: number; y: number } | null = null;
+    for (let y = 0; y < state.board.height && !mine; y++)
+      for (let x = 0; x < state.board.width && !mine; x++) if (state.board.cells[y][x].mine) mine = { x, y };
+    state = applyCoopReveal(state, mine!).state;
+    expect(state.activePlayerIndex).not.toBe(before);
   });
 
   it('awards a reward after three consecutive correct mine flags', () => {

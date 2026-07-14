@@ -23,18 +23,31 @@ test('completes a small co-op game (team wins or is eliminated deterministically
   await expect(page.getByText(/Team victory|Team eliminated/)).toBeVisible();
 });
 
-test('rotates the active player after every action', async ({ page }) => {
+test('keeps the same player for the first few moves, then rotates by the 5th', async ({ page }) => {
   // Denser mine field so a single reveal is very unlikely to cascade the
   // entire board open and end the game before we get to check rotation.
-  await startMatch(page, { mode: 'Co-op Survival', width: 8, height: 8, mines: 14 });
-  const cells = gridCells(page);
+  await startMatch(page, { mode: 'Co-op Survival', width: 12, height: 12, mines: 28 });
+  const active = () => page.locator('[class*="border-\\[var(--md-accent)\\]"]').first().textContent();
 
-  const activeBefore = await page.locator('[class*="border-\\[var(--md-accent)\\]"]').first().textContent();
-  await cells.nth(0).click();
+  const first = await active();
+  await gridCells(page).nth(0).click(); // action 1 (safe first reveal)
 
-  const gameEnded = (await page.getByText(/Team victory|Team eliminated/).count()) > 0;
-  test.skip(gameEnded, 'board happened to complete on the very first reveal');
+  if ((await page.getByText(/Team victory|Team eliminated/).count()) > 0) {
+    test.skip(true, 'board happened to complete on the first reveal');
+    return;
+  }
+  // After a single correct action the SAME player must still be active
+  // (co-op no longer rotates on every action).
+  expect(await active()).toEqual(first);
 
-  const activeAfter = await page.locator('[class*="border-\\[var(--md-accent)\\]"]').first().textContent();
-  expect(activeAfter).not.toEqual(activeBefore);
+  // Keep clicking hidden cells; by the 5th action (or a mistake) it rotates.
+  let rotated = false;
+  for (let i = 0; i < 5 && !rotated; i++) {
+    const hidden = page.locator('[role="gridcell"][aria-label="hidden"]').first();
+    if ((await hidden.count()) === 0) break;
+    await hidden.click();
+    if ((await page.getByText(/Team victory|Team eliminated/).count()) > 0) break;
+    if ((await active()) !== first) rotated = true;
+  }
+  expect(rotated).toBe(true);
 });

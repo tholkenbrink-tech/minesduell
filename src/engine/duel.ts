@@ -1,7 +1,12 @@
 import type { Board, GameEvent, GameSettings, Player, PlayerStats, Position } from './types';
 import { createPlayerStats } from './types';
-import { createEmptyBoard, isBoardFullyRevealed } from './board';
+import { createEmptyBoard, isBoardFullyRevealed, isBoardCleared } from './board';
 import { revealCell, toggleFlag } from './reveal';
+
+/** The board is done when all safe cells are revealed, or nothing is left hidden. */
+function boardComplete(board: Board): boolean {
+  return isBoardFullyRevealed(board) || isBoardCleared(board);
+}
 
 export interface DuelState {
   mode: 'duel';
@@ -152,7 +157,7 @@ export function applyDuelReveal(state: DuelState, pos: Position): DuelActionResu
     turnEnds = true;
   }
 
-  if (isBoardFullyRevealed(state.board)) {
+  if (boardComplete(state.board)) {
     finishGame(state, events);
     state.log.push(...events);
     return { state, events };
@@ -211,7 +216,7 @@ export function applyDuelFlag(state: DuelState, pos: Position): DuelActionResult
     return { state, events };
   }
 
-  if (isBoardFullyRevealed(state.board)) {
+  if (boardComplete(state.board)) {
     finishGame(state, events);
     state.log.push(...events);
     return { state, events };

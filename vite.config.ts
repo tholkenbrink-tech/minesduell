@@ -11,19 +11,21 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'MinesDuell',
         short_name: 'MinesDuell',
-        description: 'Local multiplayer Minesweeper party game',
-        theme_color: '#161b22',
-        background_color: '#0d1117',
+        description: 'Local multiplayer Minesweeper party game for 2–4 players on one device.',
+        theme_color: '#0b1013',
+        background_color: '#0b1013',
         display: 'standalone',
         orientation: 'any',
+        categories: ['games'],
         icons: [
           { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },
           { src: 'pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
         ],
       },
       workbox: {

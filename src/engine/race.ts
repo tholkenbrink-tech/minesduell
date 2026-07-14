@@ -1,6 +1,6 @@
 import type { Board, GameEvent, GameSettings, Player, PlayerStats, Position } from './types';
 import { createPlayerStats } from './types';
-import { createEmptyBoard, areAllMinesResolved, isBoardFullyRevealed } from './board';
+import { createEmptyBoard, areAllMinesResolved, isBoardFullyRevealed, isBoardCleared } from './board';
 import { revealCell, toggleFlag } from './reveal';
 
 export type RaceRunOutcome = 'completed' | 'lives-lost' | 'timeout' | 'gave-up' | null;
@@ -64,6 +64,10 @@ export function startRaceRun(state: RaceState): RaceState {
 }
 
 function checkRaceCompletion(board: Board, rule: GameSettings['raceCompletionRule']): boolean {
+  // A fully-uncovered board (nothing left plain-hidden) always ends the run,
+  // regardless of rule — this is what "the board is uncovered" means and it
+  // rescues the game if a safe tile was flagged by mistake.
+  if (isBoardCleared(board)) return true;
   return rule === 'flag-all-mines' ? areAllMinesResolved(board) : isBoardFullyRevealed(board);
 }
 

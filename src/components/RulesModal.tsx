@@ -28,8 +28,8 @@ export function RulesModal({ onClose }: { onClose: () => void }) {
           </p>
           <p>
             <strong>Turns:</strong> in Duell, only the active player can act. In the default streak mode you keep your
-            turn on every correct move and only hand over when you make a mistake. In Co-op the turn rotates after
-            every action so everyone shares the risk.
+            turn on every correct move and only hand over when you make a mistake. In Co-op each player takes up to
+            5 moves before handing over — or hands over immediately after a mistake — so everyone shares the risk.
           </p>
           <p>
             <strong>Mistakes:</strong> the only two mistakes are revealing a mine or flagging a safe tile by accident.

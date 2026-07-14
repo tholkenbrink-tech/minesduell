@@ -1,6 +1,6 @@
 import type { Board, GameEvent, GameSettings, Player, PlayerStats, Position } from './types';
 import { createPlayerStats } from './types';
-import { createEmptyBoard, isBoardFullyRevealed } from './board';
+import { createEmptyBoard, isBoardFullyRevealed, isBoardCleared } from './board';
 import { revealCell, toggleFlag } from './reveal';
 import { hashSeed, mulberry32, type Rng } from './rng';
 
@@ -27,6 +27,7 @@ export interface CoopState {
   players: Player[];
   stats: Record<string, PlayerStats>;
   activePlayerIndex: number;
+  turnActionsCount: number;
   teamScore: number;
   streakCount: number;
   longestStreak: number;
@@ -43,6 +44,8 @@ const SAFE_REVEAL_POINTS = 1;
 const MINE_DETECT_POINTS = 10;
 const STREAK_REWARD_THRESHOLD = 3;
 const RANDOM_DROP_CHANCE = 0.04;
+/** A co-op player keeps the device for up to this many actions before it rotates. */
+const COOP_ACTIONS_PER_TURN = 5;
 
 export function createCoopMatch(settings: GameSettings, players: Player[], seed: number): CoopState {
   const board = createEmptyBoard(settings.board.width, settings.board.height, settings.board.mines, seed);
@@ -55,6 +58,7 @@ export function createCoopMatch(settings: GameSettings, players: Player[], seed:
     players,
     stats,
     activePlayerIndex: 0,
+    turnActionsCount: 0,
     teamScore: 0,
     streakCount: 0,
     longestStreak: 0,
@@ -94,7 +98,9 @@ function checkTeamTarget(state: CoopState): boolean {
   if (target.type === 'score') {
     return state.teamScore >= (target.count ?? 1000);
   }
-  return isBoardFullyRevealed(state.board);
+  // complete-board: all safe cells revealed, or the board fully uncovered
+  // (nothing plain-hidden left — rescues a mis-flagged safe tile).
+  return isBoardFullyRevealed(state.board) || isBoardCleared(state.board);
 }
 
 function awardReward(state: CoopState, events: GameEvent[]): void {
@@ -157,6 +163,7 @@ function endTurn(state: CoopState, events: GameEvent[]): void {
     return;
   }
   state.activePlayerIndex = nextAlivePlayerIndex(state, state.activePlayerIndex);
+  state.turnActionsCount = 0;
 }
 
 function maybeGenerateNextEndlessBoard(state: CoopState, events: GameEvent[]): void {
@@ -188,6 +195,8 @@ export interface CoopActionResult {
 }
 
 function finalizeAction(state: CoopState, events: GameEvent[], mistake: boolean, correctMineFlag: boolean): void {
+  state.turnActionsCount += 1;
+
   if (correctMineFlag) {
     state.streakCount += 1;
     state.longestStreak = Math.max(state.longestStreak, state.streakCount);
@@ -218,7 +227,13 @@ function finalizeAction(state: CoopState, events: GameEvent[], mistake: boolean,
     }
   }
 
-  if (state.status === 'playing') endTurn(state, events);
+  // Rotate to the next player on a mistake, or once the current player has
+  // used their full allowance of actions. A mistake-free run of the first
+  // few actions keeps the device; the 5th action hands it over.
+  if (state.status === 'playing') {
+    const rotate = mistake || state.turnActionsCount >= COOP_ACTIONS_PER_TURN;
+    if (rotate) endTurn(state, events);
+  }
   state.log.push(...events);
 }
 

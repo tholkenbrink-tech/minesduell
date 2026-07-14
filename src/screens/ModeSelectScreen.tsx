@@ -41,7 +41,7 @@ const MODES: ModeInfo[] = [
     title: 'Co-op Survival',
     tagline: 'Team up, share the risk',
     objective: 'Two to four players solve one board together while protecting shared lives.',
-    turns: 'The active player rotates after every single action, right or wrong.',
+    turns: 'Each player keeps going for up to 5 moves, then hands the device over — or immediately if they make a mistake.',
     ending: 'Team wins by clearing the board or hitting the score target; loses if everyone is eliminated.',
     length: '6–12 minutes',
     accent: 'var(--md-player-violet)',
@@ -55,13 +55,13 @@ export function ModeSelectScreen() {
   return (
     <div className="mx-auto flex min-h-full max-w-5xl flex-col items-center gap-8 px-4 py-10 sm:py-16">
       <div className="text-center">
-        <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">MinesDuell</h1>
-        <p className="mt-2 text-[var(--md-text-muted)]">Local multiplayer Minesweeper for 2–4 players, one device.</p>
+        <h1 className="md-gradient-text text-5xl font-black tracking-tight sm:text-6xl">MinesDuell</h1>
+        <p className="mt-3 text-[var(--md-text-muted)]">Local multiplayer Minesweeper for 2–4 players, one device.</p>
       </div>
 
       <div className="grid w-full gap-5 sm:grid-cols-3">
         {MODES.map((m) => (
-          <Card key={m.mode} className="flex flex-col gap-3 p-5 text-left">
+          <Card key={m.mode} interactive className="md-pop-in flex flex-col gap-3 p-5 text-left">
             <div className="flex items-center gap-2">
               <span className="h-3 w-3 rounded-full" style={{ background: m.accent }} aria-hidden />
               <h2 className="text-xl font-bold">{m.title}</h2>

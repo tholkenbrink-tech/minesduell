@@ -137,6 +137,22 @@ export function isBoardFullyRevealed(board: Board): boolean {
 }
 
 /**
+ * True when the board is fully "uncovered" — every cell is either revealed or
+ * flagged, leaving no plain-hidden cells. This is the practical end state: the
+ * player has made a decision about every tile. It also rescues the game from a
+ * stuck state where a safe cell was flagged by mistake (so it can never be
+ * revealed) — the strict all-safe-revealed check would otherwise never pass.
+ */
+export function isBoardCleared(board: Board): boolean {
+  for (const row of board.cells) {
+    for (const cell of row) {
+      if (!cell.revealed && !cell.flagged) return false;
+    }
+  }
+  return true;
+}
+
+/**
  * True when every mine has been resolved — either correctly flagged or
  * revealed by a mistaken click. A revealed mine can never be flagged again, so
  * it MUST count as resolved; otherwise a flag-all-mines game/race could never

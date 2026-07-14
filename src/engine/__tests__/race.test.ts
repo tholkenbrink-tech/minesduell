@@ -61,6 +61,55 @@ describe('race mode', () => {
     expect(run.outcome === 'lives-lost' || run.outcome === 'completed').toBe(true);
   });
 
+  it('completes when all safe cells are revealed, even after mistaken mine hits', () => {
+    const settings = { ...defaultRaceSettings(), board: { width: 6, height: 6, mines: 3, preset: 'custom' as const }, raceLives: 9 };
+    const state = createRaceMatch(settings, makePlayers(1), 5);
+    startRaceRun(state);
+    applyRaceReveal(state, { x: 0, y: 0 }); // generate + first safe reveal
+    const run = state.runs.p0;
+    // Reveal every non-mine cell; deliberately hit mines too (we have plenty of
+    // lives) — a revealed mine must not block completion.
+    for (let y = 0; y < 6; y++) {
+      for (let x = 0; x < 6; x++) {
+        if (state.phase !== 'running') break;
+        if (!run.board.cells[y][x].revealed) applyRaceReveal(state, { x, y });
+      }
+    }
+    expect(run.outcome).toBe('completed');
+    expect(state.phase).toBe('results');
+  });
+
+  it('completes when the board is fully uncovered even with a mis-flagged safe tile', () => {
+    const settings = { ...defaultRaceSettings(), board: { width: 6, height: 6, mines: 3, preset: 'custom' as const }, raceLives: 9 };
+    const state = createRaceMatch(settings, makePlayers(1), 7);
+    startRaceRun(state);
+    applyRaceReveal(state, { x: 0, y: 0 });
+    const run = state.runs.p0;
+    // Flag exactly one SAFE cell by mistake; it can never be revealed again.
+    let misflagged = false;
+    for (let y = 0; y < 6 && !misflagged; y++)
+      for (let x = 0; x < 6 && !misflagged; x++) {
+        const c = run.board.cells[y][x];
+        if (!c.mine && !c.revealed) {
+          applyRaceFlag(state, { x, y });
+          misflagged = true;
+        }
+      }
+    // Now reveal every other safe cell and flag the mines → board fully marked.
+    for (let y = 0; y < 6; y++) {
+      for (let x = 0; x < 6; x++) {
+        if (state.phase !== 'running') break;
+        const c = run.board.cells[y][x];
+        if (c.mine && !c.flagged) applyRaceFlag(state, { x, y });
+        else if (!c.mine && !c.revealed && !c.flagged) applyRaceReveal(state, { x, y });
+      }
+    }
+    // The strict "all safe revealed" rule can't pass (a safe tile is flagged),
+    // but the board is fully uncovered, so the run still completes.
+    expect(run.outcome).toBe('completed');
+    expect(state.phase).toBe('results');
+  });
+
   it('ranks Time Race by completion then time then lives then actions', () => {
     const settings = { ...defaultRaceSettings(), raceScoring: 'time' as const };
     const state = createRaceMatch(settings, makePlayers(2), 1);

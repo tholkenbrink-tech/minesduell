@@ -3,22 +3,30 @@
 :root {
   color-scheme: light dark;
 
-  --md-bg: #f4f6f8;
+  --md-bg: #eef1f5;
+  --md-bg-glow: radial-gradient(1200px 600px at 50% -10%, rgba(16, 185, 129, 0.10), transparent 70%);
   --md-surface: #ffffff;
-  --md-surface-2: #eef1f4;
-  --md-text: #10151a;
+  --md-surface-2: #e9edf2;
+  --md-text: #0c1116;
   --md-text-muted: #5b6672;
-  --md-border: #d7dde3;
-  --md-accent: #1f7a5c;
-  --md-accent-contrast: #ffffff;
-  --md-danger: #c4392b;
-  --md-warning: #b8860a;
+  --md-border: #dce2e8;
+  --md-accent: #10b981;
+  --md-accent-2: #0ea5a4;
+  --md-accent-contrast: #04140d;
+  --md-accent-soft: rgba(16, 185, 129, 0.12);
+  --md-danger: #e0483a;
+  --md-warning: #c98a1a;
 
-  --md-cell-hidden: #c7d0d8;
-  --md-cell-hidden-hover: #b9c4cd;
-  --md-cell-revealed: #f4f6f8;
-  --md-cell-flag-bg: #fff4d6;
-  --md-cell-mine-bg: #f6d0cc;
+  --md-shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
+  --md-shadow-md: 0 4px 12px rgba(16, 24, 40, 0.08), 0 2px 4px rgba(16, 24, 40, 0.06);
+  --md-shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.14), 0 4px 8px rgba(16, 24, 40, 0.06);
+
+  --md-cell-hidden: #cbd4dc;
+  --md-cell-hidden-2: #bcc7d1;
+  --md-cell-hidden-hover: #d7e0e8;
+  --md-cell-revealed: #f3f6f9;
+  --md-cell-flag-bg: #ffedc2;
+  --md-cell-mine-bg: #f6cdc7;
 
   --md-num-1: #1e63d8;
   --md-num-2: #1f8a4c;
@@ -47,20 +55,28 @@
 }
 
 :root[data-theme='dark'] {
-  --md-bg: #0e1418;
-  --md-surface: #161d22;
-  --md-surface-2: #1d262c;
+  --md-bg: #0b1013;
+  --md-bg-glow: radial-gradient(1200px 600px at 50% -10%, rgba(52, 211, 153, 0.10), transparent 70%);
+  --md-surface: #141b20;
+  --md-surface-2: #1c252b;
   --md-text: #eef2f5;
   --md-text-muted: #93a1ab;
-  --md-border: #2a343b;
-  --md-accent: #3fcf9e;
-  --md-accent-contrast: #08130e;
+  --md-border: #29343b;
+  --md-accent: #34d399;
+  --md-accent-2: #2dd4bf;
+  --md-accent-contrast: #04140d;
+  --md-accent-soft: rgba(52, 211, 153, 0.14);
   --md-danger: #ff6b5c;
   --md-warning: #e0b23d;
 
-  --md-cell-hidden: #33414a;
-  --md-cell-hidden-hover: #3c4c56;
-  --md-cell-revealed: #182024;
+  --md-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --md-shadow-md: 0 6px 18px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.35);
+  --md-shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.55), 0 4px 10px rgba(0, 0, 0, 0.4);
+
+  --md-cell-hidden: #37444d;
+  --md-cell-hidden-2: #2c383f;
+  --md-cell-hidden-hover: #435159;
+  --md-cell-revealed: #151d22;
   --md-cell-flag-bg: #4a3f1c;
   --md-cell-mine-bg: #4a2622;
 
@@ -76,20 +92,28 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --md-bg: #0e1418;
-    --md-surface: #161d22;
-    --md-surface-2: #1d262c;
+    --md-bg: #0b1013;
+    --md-bg-glow: radial-gradient(1200px 600px at 50% -10%, rgba(52, 211, 153, 0.10), transparent 70%);
+    --md-surface: #141b20;
+    --md-surface-2: #1c252b;
     --md-text: #eef2f5;
     --md-text-muted: #93a1ab;
-    --md-border: #2a343b;
-    --md-accent: #3fcf9e;
-    --md-accent-contrast: #08130e;
+    --md-border: #29343b;
+    --md-accent: #34d399;
+    --md-accent-2: #2dd4bf;
+    --md-accent-contrast: #04140d;
+    --md-accent-soft: rgba(52, 211, 153, 0.14);
     --md-danger: #ff6b5c;
     --md-warning: #e0b23d;
 
-    --md-cell-hidden: #33414a;
-    --md-cell-hidden-hover: #3c4c56;
-    --md-cell-revealed: #182024;
+    --md-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --md-shadow-md: 0 6px 18px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.35);
+    --md-shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.55), 0 4px 10px rgba(0, 0, 0, 0.4);
+
+    --md-cell-hidden: #37444d;
+    --md-cell-hidden-2: #2c383f;
+    --md-cell-hidden-hover: #435159;
+    --md-cell-revealed: #151d22;
     --md-cell-flag-bg: #4a3f1c;
     --md-cell-mine-bg: #4a2622;
 
@@ -123,13 +147,25 @@ body,
   height: 100%;
 }
 
+html {
+  /* App-like feel in standalone/PWA: no rubber-band scroll, no tap flash. */
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   margin: 0;
+  background:
+    var(--md-bg-glow, none),
+    var(--md-bg);
+  background-attachment: fixed;
+  overscroll-behavior: none;
 }
 
 button {
   font: inherit;
   color: inherit;
+  cursor: pointer;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -164,5 +200,84 @@ button {
 
 .md-fade-in {
   animation: md-fade-in 180ms ease-out;
+}
+
+@keyframes md-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.md-pop-in {
+  animation: md-pop-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Gradient brand text for the wordmark. */
+.md-gradient-text {
+  background: linear-gradient(120deg, var(--md-accent), var(--md-accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Card with subtle depth + a lift on hover (pointer devices only). */
+.md-card {
+  box-shadow: var(--md-shadow-sm);
+  transition:
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+@media (hover: hover) {
+  .md-card-interactive:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--md-shadow-lg);
+    border-color: color-mix(in srgb, var(--md-accent) 40%, var(--md-border));
+  }
+}
+
+/* Primary accent gradient for key buttons. */
+.md-accent-gradient {
+  background-image: linear-gradient(135deg, var(--md-accent), var(--md-accent-2));
+}
+
+/* --- Board tiles: rounded, with a subtle raised/recessed feel --- */
+.md-tile {
+  border-radius: 5px;
+  transition:
+    background-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 80ms ease;
+}
+.md-tile-hidden {
+  background: linear-gradient(180deg, var(--md-cell-hidden), var(--md-cell-hidden-2));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 1px 1.5px rgba(0, 0, 0, 0.14);
+}
+@media (hover: hover) {
+  .md-tile-hidden:hover {
+    background: var(--md-cell-hidden-hover);
+  }
+}
+.md-tile-revealed {
+  background: var(--md-cell-revealed);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+.md-tile-flag {
+  background: var(--md-cell-flag-bg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+.md-tile-mine {
+  background: var(--md-cell-mine-bg);
+}
+.md-tile-peek-danger {
+  background: var(--md-cell-mine-bg);
 }
 

@@ -6,20 +6,32 @@ export function Button({
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'ghost' | 'danger' }) {
   const base =
-    'focus-ring inline-flex items-center justify-center gap-2 rounded-[var(--md-radius-md)] px-4 py-2.5 text-sm font-semibold transition-transform active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none';
+    'focus-ring inline-flex items-center justify-center gap-2 rounded-[var(--md-radius-md)] px-4 py-2.5 text-sm font-semibold transition-[transform,box-shadow,background-color] duration-150 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none';
   const variants: Record<string, string> = {
-    primary: 'bg-[var(--md-accent)] text-[var(--md-accent-contrast)]',
-    secondary: 'bg-[var(--md-surface-2)] text-[var(--md-text)] border border-[var(--md-border)]',
+    primary:
+      'md-accent-gradient text-[var(--md-accent-contrast)] shadow-[var(--md-shadow-sm)] hover:shadow-[var(--md-shadow-md)]',
+    secondary:
+      'bg-[var(--md-surface-2)] text-[var(--md-text)] border border-[var(--md-border)] hover:border-[var(--md-accent)]',
     ghost: 'bg-transparent text-[var(--md-text)] hover:bg-[var(--md-surface-2)]',
-    danger: 'bg-[var(--md-danger)] text-white',
+    danger: 'bg-[var(--md-danger)] text-white shadow-[var(--md-shadow-sm)] hover:shadow-[var(--md-shadow-md)]',
   };
   return <button className={`${base} ${variants[variant]} ${className}`} {...props} />;
 }
 
-export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
+export function Card({
+  children,
+  className = '',
+  interactive = false,
+}: {
+  children: ReactNode;
+  className?: string;
+  interactive?: boolean;
+}) {
   return (
     <div
-      className={`rounded-[var(--md-radius-lg)] border border-[var(--md-border)] bg-[var(--md-surface)] ${className}`}
+      className={`md-card rounded-[var(--md-radius-lg)] border border-[var(--md-border)] bg-[var(--md-surface)] ${
+        interactive ? 'md-card-interactive' : ''
+      } ${className}`}
     >
       {children}
     </div>
