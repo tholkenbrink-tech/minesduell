@@ -27,12 +27,14 @@ export function RulesModal({ onClose }: { onClose: () => void }) {
             Revealing a tile with zero neighboring mines automatically opens up the surrounding safe area.
           </p>
           <p>
-            <strong>Turns:</strong> in Duel and Co-op, only the active player can act. Mistakes usually end your
-            turn; correctly flagging a mine or opening a big empty area can let you keep going.
+            <strong>Turns:</strong> in Duell, only the active player can act. In the default streak mode you keep your
+            turn on every correct move and only hand over when you make a mistake. In Co-op the turn rotates after
+            every action so everyone shares the risk.
           </p>
           <p>
-            <strong>Mistakes:</strong> revealing a mine or flagging a safe tile by accident costs a life where lives
-            are enabled, and always ends your turn.
+            <strong>Mistakes:</strong> the only two mistakes are revealing a mine or flagging a safe tile by accident.
+            Either one ends your turn (and costs a life where lives are enabled). A revealed mine stays revealed — it's
+            simply out of play and never blocks finishing the board.
           </p>
           <p>
             <strong>Race privacy:</strong> each player gets an identical board, but nobody can see another player's

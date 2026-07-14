@@ -1,6 +1,47 @@
 import { describe, expect, it } from 'vitest';
-import { createEmptyBoard, generateBoard, maxMinesForSafeFirstReveal, validateBoardConfig, neighbors } from '../board';
+import {
+  createEmptyBoard,
+  generateBoard,
+  maxMinesForSafeFirstReveal,
+  validateBoardConfig,
+  neighbors,
+  areAllMinesResolved,
+  countRemainingMines,
+} from '../board';
 import { hashSeed } from '../rng';
+
+describe('mine resolution after a mistaken reveal', () => {
+  function board2x1WithMine() {
+    // 1x2 board (2 cells), one mine at (1,0). generated=true so no auto-gen.
+    const b = createEmptyBoard(2, 1, 1, 1);
+    b.generated = true;
+    b.cells[0][1].mine = true;
+    b.cells[0][0].adjacent = 1;
+    return b;
+  }
+
+  it('areAllMinesResolved is true once the only mine is correctly flagged', () => {
+    const b = board2x1WithMine();
+    expect(areAllMinesResolved(b)).toBe(false);
+    b.cells[0][1].flagged = true;
+    expect(areAllMinesResolved(b)).toBe(true);
+  });
+
+  it('a mine REVEALED by mistake counts as resolved (out of the equation)', () => {
+    const b = board2x1WithMine();
+    // Simulate a mistaken click on the mine: revealed but not flagged.
+    b.cells[0][1].revealed = true;
+    // A revealed mine can never be flagged, so completion must not require it.
+    expect(areAllMinesResolved(b)).toBe(true);
+  });
+
+  it('countRemainingMines drops a mine once it is revealed by mistake', () => {
+    const b = board2x1WithMine();
+    expect(countRemainingMines(b)).toBe(1);
+    b.cells[0][1].revealed = true;
+    expect(countRemainingMines(b)).toBe(0);
+  });
+});
 
 describe('board generation', () => {
   it('produces the same mine layout for the same seed and first click', () => {

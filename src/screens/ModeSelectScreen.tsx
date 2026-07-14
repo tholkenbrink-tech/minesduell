@@ -18,10 +18,10 @@ interface ModeInfo {
 const MODES: ModeInfo[] = [
   {
     mode: 'duel',
-    title: 'Duel',
+    title: 'Duell',
     tagline: 'Head-to-head mine hunting',
     objective: 'Players compete on one shared board and try to correctly identify mines.',
-    turns: 'Turns pass on mistakes; a correct mine flag or a cascading reveal lets you go again.',
+    turns: 'You keep your turn on every correct move — you only hand over when you hit a mine or misflag a safe tile.',
     ending: 'First to the mine target, or the most mines detected when the board is solved.',
     length: '5–10 minutes',
     accent: 'var(--md-player-coral)',

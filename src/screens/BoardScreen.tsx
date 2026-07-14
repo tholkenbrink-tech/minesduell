@@ -86,7 +86,7 @@ export function BoardScreen() {
               value={actionMode}
               onChange={setActionMode}
               options={[
-                { value: 'reveal', label: '👆 Reveal' },
+                { value: 'reveal', label: '🔍 Reveal' },
                 { value: 'flag', label: '🚩 Flag' },
               ]}
             />
@@ -155,7 +155,7 @@ export function BoardScreen() {
               value={actionMode}
               onChange={setActionMode}
               options={[
-                { value: 'reveal', label: '👆 Reveal' },
+                { value: 'reveal', label: '🔍 Reveal' },
                 { value: 'flag', label: '🚩 Flag' },
               ]}
             />
@@ -236,7 +236,7 @@ export function BoardScreen() {
             value={actionMode}
             onChange={setActionMode}
             options={[
-              { value: 'reveal', label: '👆 Reveal' },
+              { value: 'reveal', label: '🔍 Reveal' },
               { value: 'flag', label: '🚩 Flag' },
             ]}
           />

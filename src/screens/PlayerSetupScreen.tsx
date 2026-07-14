@@ -5,6 +5,7 @@ import { usePrefsStore } from '../store/usePrefsStore';
 import { Button, Card, Toggle } from '../components/ui';
 import { PlayerBadge } from '../components/PlayerBadge';
 import { shuffled, mulberry32 } from '../engine/rng';
+import { modeDisplayName } from '../engine/defaults';
 
 function makePlayer(index: number, name: string): Player {
   return {
@@ -75,7 +76,8 @@ export function PlayerSetupScreen() {
         <button className="focus-ring text-sm text-[var(--md-text-muted)]" onClick={goToModeSelect}>
           ← Change mode
         </button>
-        <h1 className="mt-2 text-3xl font-extrabold">Who's playing? ({mode})</h1>
+        <h1 className="mt-2 text-3xl font-extrabold">Who's playing?</h1>
+        <p className="text-sm font-semibold text-[var(--md-accent)]">{modeDisplayName(mode)}</p>
         <p className="text-sm text-[var(--md-text-muted)]">2 to 4 players, one device.</p>
       </div>
 

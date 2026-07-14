@@ -123,9 +123,9 @@ export function GameConfigScreen() {
 
       {mode === 'duel' && (
         <Card className="flex flex-col gap-1 p-4">
-          <h2 className="text-lg font-bold">Duel rules</h2>
+          <h2 className="text-lg font-bold">Duell rules</h2>
           <SegmentedControl
-            ariaLabel="Duel variant"
+            ariaLabel="Duell variant"
             value={settings.duelVariant}
             onChange={(v) => updateSettings({ duelVariant: v })}
             options={[

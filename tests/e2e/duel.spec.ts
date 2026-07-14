@@ -19,6 +19,18 @@ test('reveals a cell on click and switches Reveal/Flag action mode', async ({ pa
   await expect(page.getByRole('radio', { name: '🚩 Flag' })).toHaveAttribute('aria-checked', 'true');
 });
 
+test('streak mode (default): a correct reveal KEEPS the same player active', async ({ page }) => {
+  await startMatch(page, { mode: 'Duel', width: 8, height: 8, mines: 5 });
+  const active = () => page.locator('[class*="border-\\[var(--md-accent)\\]"]').first().textContent();
+
+  const before = await active();
+  await clickCell(page, 0); // first reveal is always safe → a correct move
+  const after = await active();
+  // The reported bug: the turn passed after every move. It must not — a
+  // correct move keeps the current player's turn in streak mode.
+  expect(after).toEqual(before);
+});
+
 test('flag toggle is idempotent regardless of mine placement', async ({ page }) => {
   await startMatch(page, { mode: 'Duel', width: 8, height: 8, mines: 5 });
   await page.getByRole('radio', { name: '🚩 Flag' }).click();

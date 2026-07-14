@@ -1,5 +1,12 @@
 import type { GameMode, GameSettings } from './types';
 
+/** Human-readable name for a mode, used in headings/labels. */
+export function modeDisplayName(mode: GameMode): string {
+  if (mode === 'race') return 'Race';
+  if (mode === 'coop') return 'Co-op Survival';
+  return 'Duell';
+}
+
 const shared = {
   firstRevealSafe: true,
   sound: true,

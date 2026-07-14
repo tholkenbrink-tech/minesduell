@@ -129,16 +129,20 @@ export function applyDuelReveal(state: DuelState, pos: Position): DuelActionResu
   let turnEnds = false;
 
   if (result.hitMine) {
+    // Hitting a mine is a mistake — it always ends the turn (and costs a life
+    // in the survival variant). This is one of the only two ways to lose a turn.
     stats.minesTriggered += 1;
     stats.currentStreak = 0;
     loseLife(state, player.id, events);
     turnEnds = true;
   } else if (result.newlyRevealedSafe.length > 0) {
+    // A correct reveal. In the streak and survival variants the active player
+    // keeps their turn on every correct move and only loses it on a mistake
+    // (revealing a mine or flagging a safe tile). The turn is NOT passed here.
     stats.safeCellsRevealed += result.newlyRevealedSafe.length;
-    const wasCascade = result.newlyRevealedSafe.length > 1;
-    if (!wasCascade) turnEnds = true; // plain numbered reveal passes the turn
   }
 
+  // Only the classic variant passes the turn on every completed action.
   if (state.settings.duelVariant === 'classic') turnEnds = true;
 
   if (
@@ -176,11 +180,14 @@ export function applyDuelFlag(state: DuelState, pos: Position): DuelActionResult
   if (result.correct === true) {
     if (!state.scoredMinePositions.has(key)) {
       stats.minesDetected += 1;
+      stats.currentStreak += 1;
+      stats.longestStreak = Math.max(stats.longestStreak, stats.currentStreak);
       state.scoredMinePositions.add(key);
     }
     // Correct flag retains the turn (unless classic variant), and cannot be
     // farmed by re-toggling: only counted once via scoredMinePositions above.
   } else if (result.correct === false) {
+    // Flagging a safe tile is a mistake — ends the turn and breaks the streak.
     stats.incorrectFlags += 1;
     stats.currentStreak = 0;
     loseLife(state, player.id, events);

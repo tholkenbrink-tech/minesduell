@@ -1,6 +1,6 @@
 import type { Board, GameEvent, GameSettings, Player, PlayerStats, Position } from './types';
 import { createPlayerStats } from './types';
-import { createEmptyBoard, areAllMinesFlagged, isBoardFullyRevealed } from './board';
+import { createEmptyBoard, areAllMinesResolved, isBoardFullyRevealed } from './board';
 import { revealCell, toggleFlag } from './reveal';
 
 export type RaceRunOutcome = 'completed' | 'lives-lost' | 'timeout' | 'gave-up' | null;
@@ -64,7 +64,7 @@ export function startRaceRun(state: RaceState): RaceState {
 }
 
 function checkRaceCompletion(board: Board, rule: GameSettings['raceCompletionRule']): boolean {
-  return rule === 'flag-all-mines' ? areAllMinesFlagged(board) : isBoardFullyRevealed(board);
+  return rule === 'flag-all-mines' ? areAllMinesResolved(board) : isBoardFullyRevealed(board);
 }
 
 export function finishRaceRun(state: RaceState, outcome: Exclude<RaceRunOutcome, null>): RaceState {

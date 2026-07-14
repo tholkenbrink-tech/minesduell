@@ -112,14 +112,19 @@ export function cloneBoard(board: Board): Board {
   };
 }
 
+/**
+ * Mines still "in play" — i.e. neither correctly flagged nor already revealed.
+ * A mine that was revealed by a mistaken click is out of the equation: it can
+ * never be flagged again, so it no longer counts toward the mines left to find.
+ */
 export function countRemainingMines(board: Board): number {
-  let flaggedCorrect = 0;
+  let resolved = 0;
   for (const row of board.cells) {
     for (const cell of row) {
-      if (cell.mine && cell.flagged) flaggedCorrect++;
+      if (cell.mine && (cell.flagged || cell.revealed)) resolved++;
     }
   }
-  return board.mineCount - flaggedCorrect;
+  return board.mineCount - resolved;
 }
 
 export function isBoardFullyRevealed(board: Board): boolean {
@@ -131,10 +136,17 @@ export function isBoardFullyRevealed(board: Board): boolean {
   return true;
 }
 
-export function areAllMinesFlagged(board: Board): boolean {
+/**
+ * True when every mine has been resolved — either correctly flagged or
+ * revealed by a mistaken click. A revealed mine can never be flagged again, so
+ * it MUST count as resolved; otherwise a flag-all-mines game/race could never
+ * be completed after a single error. Mistakes are permanent, but they must not
+ * make the board impossible to finish.
+ */
+export function areAllMinesResolved(board: Board): boolean {
   for (const row of board.cells) {
     for (const cell of row) {
-      if (cell.mine && !cell.flagged) return false;
+      if (cell.mine && !cell.flagged && !cell.revealed) return false;
     }
   }
   return true;

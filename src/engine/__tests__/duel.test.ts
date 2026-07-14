@@ -78,13 +78,42 @@ describe('duel mode', () => {
     expect(state.activePlayerIndex).not.toBe(activeBefore);
   });
 
-  it('revealing a plain numbered safe cell (no cascade) ends the turn', () => {
-    const settings = defaultDuelSettings();
+  it('streak variant (default): a correct numbered reveal RETAINS the turn', () => {
+    const settings = defaultDuelSettings(); // default variant is 'streak'
     let state = createDuelMatch(settings, makePlayers(2), 3);
     state = applyDuelReveal(state, { x: 0, y: 0 }).state;
     const numbered = firstSafeNumberedPosition(state, { x: 0, y: 0 });
     const activeBefore = state.activePlayerIndex;
     applyDuelReveal(state, numbered);
+    // A correct move must not pass the turn in streak mode — the player
+    // continues until they make a mistake.
+    expect(state.activePlayerIndex).toBe(activeBefore);
+  });
+
+  it('classic variant: a plain numbered reveal ends the turn', () => {
+    const settings = { ...defaultDuelSettings(), duelVariant: 'classic' as const };
+    let state = createDuelMatch(settings, makePlayers(2), 3);
+    state = applyDuelReveal(state, { x: 0, y: 0 }).state;
+    const numbered = firstSafeNumberedPosition(state, { x: 0, y: 0 });
+    const activeBefore = state.activePlayerIndex;
+    applyDuelReveal(state, numbered);
+    expect(state.activePlayerIndex).not.toBe(activeBefore);
+  });
+
+  it('streak variant only passes the turn on a mistake (mine reveal / bad flag)', () => {
+    const settings = defaultDuelSettings();
+    let state = createDuelMatch(settings, makePlayers(2), 3);
+    state = applyDuelReveal(state, { x: 0, y: 0 }).state;
+    const activeBefore = state.activePlayerIndex;
+    // Several correct numbered reveals in a row — turn must stay put.
+    for (let i = 0; i < 3; i++) {
+      const numbered = firstSafeNumberedPosition(state, { x: 0, y: 0 });
+      if (state.board.cells[numbered.y][numbered.x].revealed) break;
+      applyDuelReveal(state, numbered);
+      expect(state.activePlayerIndex).toBe(activeBefore);
+    }
+    // Now a mistake (reveal a mine) must pass the turn.
+    applyDuelReveal(state, firstMinePosition(state));
     expect(state.activePlayerIndex).not.toBe(activeBefore);
   });
 
