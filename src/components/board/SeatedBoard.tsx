@@ -235,10 +235,11 @@ function TableLayout({
     );
   }
 
-  // Compact (phone): corner indicators + a single floating active-control cluster.
-  // Reserve an edge gutter on each OCCUPIED side so the active seat's floating
-  // controls (and corner indicators) dock clear of the board instead of sitting
-  // on top of the tiles. Unoccupied sides keep only a hairline margin.
+  // Compact (phone): per-seat corner indicators around the board; the active
+  // player's Reveal/Mark controls live in the movable ControlDock (BoardScreen).
+  // Reserve an edge gutter on each OCCUPIED side so the corner indicators —
+  // including the vertical labels of left/right seats — sit clear of the board
+  // tiles instead of on top of them. Unoccupied sides keep a hairline margin.
   const occupied = new Set(seats.map((s) => s.position));
   return (
     <div
