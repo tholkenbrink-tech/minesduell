@@ -9,8 +9,8 @@ export function modeDisplayName(mode: GameMode): string {
 
 const shared = {
   firstRevealSafe: true,
-  sound: true,
-  haptics: true,
+  sound: false,
+  haptics: false,
   reducedMotion: false,
   highContrast: false,
   tileSize: 'comfortable' as const,

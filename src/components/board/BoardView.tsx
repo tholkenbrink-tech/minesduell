@@ -26,6 +26,9 @@ export interface BoardViewProps {
   peekSafe?: boolean;
   /** Tile of the latest mistake (mine hit / misflag) — gets a brief shake. */
   mistakePos?: Position | null;
+  /** Show the "Center" control below the grid. Off for layouts that provide
+   *  their own recenter affordance or dock controls at the board edges. */
+  showCenterButton?: boolean;
   onAction: (kind: 'reveal' | 'flag', pos: Position) => void;
   onFocusCursorChange?: (pos: Position) => void;
 }
@@ -49,6 +52,7 @@ export function BoardView({
   peekPosition,
   peekSafe,
   mistakePos,
+  showCenterButton = true,
   onAction,
   onFocusCursorChange,
 }: BoardViewProps) {
@@ -263,7 +267,7 @@ export function BoardView({
   const rows = useMemo(() => board.cells, [board.cells]);
 
   return (
-    <div className="relative h-full w-full">
+    <div className="relative flex h-full w-full flex-col">
       <div
         ref={containerRef}
         role="grid"
@@ -276,7 +280,7 @@ export function BoardView({
         onPointerCancel={handlePointerUp}
         onWheel={handleWheel}
         onContextMenu={handleContextMenu}
-        className="focus-ring h-full w-full touch-none overflow-hidden rounded-[var(--md-radius-lg)] border border-[var(--md-border)] bg-[var(--md-surface-2)]"
+        className="focus-ring min-h-0 w-full flex-1 touch-none overflow-hidden rounded-[var(--md-radius-lg)] border border-[var(--md-border)] bg-[var(--md-surface-2)]"
         style={{ touchAction: 'none' }}
       >
         <div
@@ -307,14 +311,18 @@ export function BoardView({
           ))}
         </div>
       </div>
-      <button
-        type="button"
-        onClick={centerBoard}
-        className="focus-ring absolute bottom-3 right-3 rounded-full border border-[var(--md-border)] bg-[var(--md-surface)] px-3 py-2 text-xs font-semibold shadow"
-        aria-label="Center board"
-      >
-        ⊙ Center
-      </button>
+      {showCenterButton && (
+        <div className="flex shrink-0 justify-center pt-2">
+          <button
+            type="button"
+            onClick={centerBoard}
+            className="focus-ring rounded-full border border-[var(--md-border)] bg-[var(--md-surface)] px-4 py-1.5 text-xs font-semibold text-[var(--md-text)] shadow"
+            aria-label="Center board"
+          >
+            ⊙ Center
+          </button>
+        </div>
+      )}
     </div>
   );
 }

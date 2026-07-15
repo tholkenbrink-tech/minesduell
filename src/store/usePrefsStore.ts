@@ -18,8 +18,8 @@ export interface Prefs {
 }
 
 const DEFAULT_PREFS: Prefs = {
-  sound: true,
-  haptics: true,
+  sound: false,
+  haptics: false,
   reducedMotion: false,
   highContrast: false,
   tileSize: 'comfortable',

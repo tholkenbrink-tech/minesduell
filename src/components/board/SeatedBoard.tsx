@@ -74,6 +74,7 @@ export function SeatedBoard(props: SeatedBoardProps) {
         tileSizePref={props.tileSizePref}
         orientationDeg={activeRotation}
         mistakePos={props.mistakePos}
+        showCenterButton={props.variant === 'face-to-face'}
         onAction={props.onAction}
       />
       <SeamFeedback feed={props.feed} players={props.players} rotation={activeRotation} />

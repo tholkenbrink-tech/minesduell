@@ -21,8 +21,10 @@
   --md-neon-green: #3cff9d;
   --md-neon-red: #ff4d5e;
   --md-neon-amber: #ffb020;
-  --md-neon-text: #f4f2ff;
-  --md-neon-text-muted: #9a97c9;
+  --md-neon-text: #f7f6ff;
+  /* Brighter muted tone: the original #9a97c9 sat too low against the near-black
+     neon background. This lifts secondary text/stat contrast across the app. */
+  --md-neon-text-muted: #bcb9e6;
 
   /* --- Core surface + text palette, mapped onto the neon look --- */
   --md-bg: var(--md-neon-bg);
@@ -43,10 +45,10 @@
   --md-shadow-md: 0 6px 18px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4);
   --md-shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.6), 0 4px 10px rgba(0, 0, 0, 0.45);
 
-  --md-cell-hidden: #232752;
-  --md-cell-hidden-2: #171933;
-  --md-cell-hidden-hover: #2c3164;
-  --md-cell-revealed: #0d0e1f;
+  --md-cell-hidden: #333a80;
+  --md-cell-hidden-2: #232963;
+  --md-cell-hidden-hover: #3e4699;
+  --md-cell-revealed: #15172f;
   --md-cell-flag-bg: #241236;
   --md-cell-mine-bg: #3f1119;
 
@@ -57,8 +59,8 @@
   --md-num-4: #c084fc;
   --md-num-5: #ffb020;
   --md-num-6: #4fe0d0;
-  --md-num-7: #f4f2ff;
-  --md-num-8: #9a97c9;
+  --md-num-7: #f7f6ff;
+  --md-num-8: #bcb9e6;
 
   /* Player accents remapped to neon-distinct hues (index order:
      coral→pink, teal→cyan, violet, amber). */
@@ -253,8 +255,8 @@ button {
 .md-tile-hidden {
   background: linear-gradient(155deg, var(--md-cell-hidden), var(--md-cell-hidden-2));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 2px 4px rgba(0, 0, 0, 0.4);
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 2px 4px rgba(0, 0, 0, 0.45);
 }
 @media (hover: hover) {
   .md-tile-hidden:hover {
