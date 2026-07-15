@@ -38,7 +38,7 @@ export function PlayerBadge({
       <div
         role="img"
         aria-label={player.name}
-        className={`relative inline-flex items-center justify-center ${active ? 'ring-2 ring-offset-2 ring-[var(--md-accent)]' : ''}`}
+        className={`relative inline-flex shrink-0 items-center justify-center ${active ? 'ring-2 ring-offset-2 ring-[var(--md-accent)]' : ''}`}
         style={{ width: size, height: size }}
       >
         <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden>
@@ -55,7 +55,7 @@ export function PlayerBadge({
     <div
       role="img"
       aria-label={player.name}
-      className={`inline-flex items-center justify-center text-xs font-bold text-white ${
+      className={`inline-flex shrink-0 items-center justify-center text-xs font-bold text-white ${
         active ? 'ring-2 ring-offset-2 ring-[var(--md-accent)]' : ''
       }`}
       style={shapeStyle}

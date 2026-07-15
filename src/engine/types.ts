@@ -67,7 +67,9 @@ export interface Player {
   shape: PlayerShape;
 }
 
-export type DeviceArrangement = 'auto' | 'side-by-side' | 'face-to-face' | 'table';
+// Three explicit device arrangements. Legacy 'auto' was removed — see
+// migrateArrangement() in engine/arrangement.ts for how saved values migrate.
+export type DeviceArrangement = 'side-by-side' | 'face-to-face' | 'table';
 
 export type DuelVariant = 'classic' | 'streak' | 'survival';
 export type DuelTargetType = 'first-to' | 'majority' | 'complete-board';

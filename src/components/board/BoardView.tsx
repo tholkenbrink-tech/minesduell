@@ -19,7 +19,9 @@ export interface BoardViewProps {
   actionMode: 'reveal' | 'flag';
   disabled?: boolean;
   tileSizePref: 'compact' | 'comfortable' | 'large';
-  orientationDeg?: 0 | 180;
+  /** Cell-content rotation toward the active seat (0/90/180/270). The grid,
+   *  cell coordinates, and scroll position are never affected. */
+  orientationDeg?: 0 | 90 | 180 | 270;
   peekPosition?: Position | null;
   peekSafe?: boolean;
   /** Tile of the latest mistake (mine hit / misflag) — gets a brief shake. */

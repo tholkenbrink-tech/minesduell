@@ -15,7 +15,9 @@ interface CellProps {
   size: number;
   players: Player[];
   activePlayerId?: string;
-  orientationDeg: 0 | 180;
+  /** Rotation of the cell's inner content (never the cell/grid) toward the
+   *  active player's seat: 0 (bottom) · 90 (right) · 180 (top) · 270 (left). */
+  orientationDeg: 0 | 90 | 180 | 270;
   focused?: boolean;
   isPeek?: boolean;
   peekSafe?: boolean;

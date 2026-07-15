@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useMatchStore } from '../store/useMatchStore';
 import { usePrefsStore } from '../store/usePrefsStore';
 import { DIFFICULTY_PRESETS, type DifficultyPreset, type DeviceArrangement } from '../engine/types';
+import { arrangementDisabledReason, isArrangementCompatible } from '../engine/arrangement';
 import { validateBoardConfig } from '../engine/board';
 import { estimateDifficultyLabel, estimateDurationMinutes } from '../engine/defaults';
 import { Button, Card, NumberField, SegmentedControl, Toggle } from '../components/ui';
@@ -14,8 +15,7 @@ const PRESET_OPTIONS: { value: DifficultyPreset; label: string }[] = [
   { value: 'custom', label: 'Custom' },
 ];
 
-const ARRANGEMENT_OPTIONS: { value: DeviceArrangement; label: string }[] = [
-  { value: 'auto', label: 'Automatic' },
+const ARRANGEMENT_LABELS: { value: DeviceArrangement; label: string }[] = [
   { value: 'side-by-side', label: 'Side-by-side' },
   { value: 'face-to-face', label: 'Face-to-face' },
   { value: 'table', label: 'Table' },
@@ -66,14 +66,13 @@ export function GameConfigScreen() {
 
       <Card className="flex flex-col gap-3 p-4">
         <h2 className="text-lg font-bold">Board</h2>
-        <div className="flex flex-wrap gap-2">
-          <SegmentedControl
-            ariaLabel="Difficulty preset"
-            value={settings.board.preset}
-            onChange={applyPreset}
-            options={PRESET_OPTIONS}
-          />
-        </div>
+        <SegmentedControl
+          ariaLabel="Difficulty preset"
+          value={settings.board.preset}
+          onChange={applyPreset}
+          options={PRESET_OPTIONS}
+          columns={3}
+        />
         <div className="grid grid-cols-3 gap-3">
           <NumberField
             id="board-width"
@@ -111,14 +110,26 @@ export function GameConfigScreen() {
       <Card className="flex flex-col gap-1 p-4">
         <h2 className="text-lg font-bold">Device arrangement</h2>
         <p className="mb-2 text-xs text-[var(--md-text-muted)]">
-          Desktop always uses side-by-side. Face-to-face rotates controls, not the board.
+          How players sit around the device. The board stays fixed — only numbers,
+          controls, and player info rotate toward whoever's turn it is. You can also
+          change this later from the pause menu.
         </p>
         <SegmentedControl
           ariaLabel="Device arrangement"
           value={settings.arrangement}
           onChange={(v) => updateSettings({ arrangement: v })}
-          options={ARRANGEMENT_OPTIONS}
+          options={ARRANGEMENT_LABELS.map((o) => ({
+            ...o,
+            disabled: !isArrangementCompatible(o.value, players.length || 2),
+            title: arrangementDisabledReason(o.value, players.length || 2) ?? undefined,
+          }))}
+          columns={3}
         />
+        {!isArrangementCompatible('face-to-face', players.length || 2) && (
+          <p className="mt-1 text-xs text-[var(--md-text-muted)]">
+            Face-to-face needs exactly 2 players. Table seats 3–4 around the device.
+          </p>
+        )}
       </Card>
 
       {mode === 'duel' && (

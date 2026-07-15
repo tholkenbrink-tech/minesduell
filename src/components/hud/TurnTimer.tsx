@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useMatchStore } from '../../store/useMatchStore';
 
 export function TurnTimer({
   seconds,
@@ -17,19 +18,38 @@ export function TurnTimer({
   /** Count down visually but never fire onExpire — for a mirrored second copy. */
   silent?: boolean;
 }) {
-  const [remaining, setRemaining] = useState(seconds);
+  // Seed from the store so a remount (e.g. a device-arrangement switch, which
+  // leaves resetKey unchanged) restores the partially-elapsed value instead of
+  // resetting to full. A genuinely new turn changes resetKey → fresh countdown.
+  const [remaining, setRemaining] = useState(() => {
+    const saved = useMatchStore.getState().timerState;
+    return saved && saved.resetKey === resetKey ? saved.remaining : seconds;
+  });
   const expiredRef = useRef(false);
 
   useEffect(() => {
-    setRemaining(seconds);
-    expiredRef.current = false;
-  }, [resetKey, seconds]);
+    const saved = useMatchStore.getState().timerState;
+    const restored = saved && saved.resetKey === resetKey ? saved.remaining : seconds;
+    setRemaining(restored);
+    expiredRef.current = restored === 0;
+    // The authoritative (non-silent) timer owns the store value; a mirrored
+    // silent copy only reads it, so both stay in sync without double-writes.
+    if (!silent) useMatchStore.getState().syncTimer(resetKey, restored);
+  }, [resetKey, seconds, silent]);
 
   useEffect(() => {
     if (paused) return;
-    const id = setInterval(() => setRemaining((r) => Math.max(0, r - 1)), 1000);
+    const id = setInterval(
+      () =>
+        setRemaining((r) => {
+          const next = Math.max(0, r - 1);
+          if (!silent) useMatchStore.getState().syncTimer(resetKey, next);
+          return next;
+        }),
+      1000,
+    );
     return () => clearInterval(id);
-  }, [paused]);
+  }, [paused, silent, resetKey]);
 
   // Fire onExpire from an effect (after commit), not from inside the setRemaining
   // updater — calling a store action mid-render triggers a setState-in-render

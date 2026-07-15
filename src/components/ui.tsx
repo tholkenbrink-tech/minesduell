@@ -43,17 +43,25 @@ export function SegmentedControl<T extends string>({
   onChange,
   options,
   ariaLabel,
+  columns,
 }: {
   value: T;
   onChange: (v: T) => void;
-  options: { value: T; label: string }[];
+  options: { value: T; label: string; disabled?: boolean; title?: string }[];
   ariaLabel: string;
+  /** When set, lay the options out as a grid of N equal columns (wraps to fit
+   *  narrow screens) instead of a single overflowing inline row. */
+  columns?: number;
 }) {
+  const grid = columns != null;
   return (
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className="inline-flex rounded-[var(--md-radius-md)] border border-[var(--md-border)] bg-[var(--md-surface-2)] p-1"
+      className={`rounded-[var(--md-radius-md)] border border-[var(--md-border)] bg-[var(--md-surface-2)] p-1 ${
+        grid ? 'grid gap-1' : 'inline-flex'
+      }`}
+      style={grid ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } : undefined}
     >
       {options.map((opt) => (
         <button
@@ -61,8 +69,12 @@ export function SegmentedControl<T extends string>({
           type="button"
           role="radio"
           aria-checked={value === opt.value}
-          onClick={() => onChange(opt.value)}
-          className={`focus-ring rounded-[var(--md-radius-sm)] px-4 py-2 text-sm font-semibold transition-colors ${
+          disabled={opt.disabled}
+          title={opt.title}
+          onClick={() => !opt.disabled && onChange(opt.value)}
+          className={`focus-ring rounded-[var(--md-radius-sm)] py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+            grid ? 'w-full px-2' : 'px-4'
+          } ${
             value === opt.value
               ? 'bg-[var(--md-accent)] text-[var(--md-accent-contrast)]'
               : 'text-[var(--md-text-muted)] hover:text-[var(--md-text)]'
@@ -106,7 +118,6 @@ export function Toggle({
         <span
           aria-hidden
           className="pointer-events-none absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition-transform peer-checked:translate-x-5"
-          style={{ transform: checked ? 'translateX(1.25rem)' : undefined }}
         />
       </span>
     </label>

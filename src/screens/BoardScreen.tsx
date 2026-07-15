@@ -7,8 +7,10 @@ import type { DuelState } from '../engine/duel';
 import type { RaceState } from '../engine/race';
 import type { CoopState } from '../engine/coop';
 import { BoardView } from '../components/board/BoardView';
-import { FaceToFaceBoard } from '../components/board/FaceToFaceBoard';
+import { SeatedBoard } from '../components/board/SeatedBoard';
+import { isArrangementCompatible, renderArrangement } from '../engine/arrangement';
 import { PlayerStatusCard } from '../components/hud/PlayerStatusCard';
+import { PlayerRail } from '../components/hud/PlayerRail';
 import { TurnTimer } from '../components/hud/TurnTimer';
 import { SegmentedControl, Button } from '../components/ui';
 import { PauseMenu } from '../components/PauseMenu';
@@ -28,6 +30,7 @@ export function BoardScreen() {
   const mode = useMatchStore((s) => s.mode);
   const players = useMatchStore((s) => s.players);
   const settings = useMatchStore((s) => s.settings);
+  const seats = useMatchStore((s) => s.seats);
   const actionMode = useMatchStore((s) => s.actionMode);
   const setActionMode = useMatchStore((s) => s.setActionMode);
   const paused = useMatchStore((s) => s.paused);
@@ -75,7 +78,17 @@ export function BoardScreen() {
 
   if (!match) return null;
 
-  const face2face = settings.arrangement === 'face-to-face';
+  // The selected arrangement is the source of truth. Device size never changes
+  // it — it only picks compact vs. roomy presentation inside SeatedBoard. Table
+  // with two players renders the Face-to-Face shell (renderArrangement), and an
+  // incompatible selection (shouldn't happen — config disables those) falls back
+  // to the neutral side-by-side layout rather than breaking.
+  const rendered = renderArrangement(settings.arrangement, players.length);
+  const seatedVariant: 'face-to-face' | 'table' | null =
+    isArrangementCompatible(settings.arrangement, players.length) &&
+    (rendered === 'face-to-face' || rendered === 'table')
+      ? rendered
+      : null;
 
   if (mode === 'race') {
     const raceState = match as RaceState;
@@ -129,17 +142,18 @@ export function BoardScreen() {
   if (mode === 'coop') {
     const coop = match as CoopState;
     const active = players[coop.activePlayerIndex];
-    const orientationDeg = face2face && coop.activePlayerIndex === 1 ? 180 : 0;
     const pendingSelection = coop.pendingPeek && coop.pendingPeek.position.x === -1;
     const peekResolved = coop.pendingPeek && coop.pendingPeek.position.x !== -1;
 
-    if (face2face && players.length === 2) {
+    if (seatedVariant) {
       return (
         <>
           <div aria-live="polite" className="sr-only">
             {announce}
           </div>
-          <FaceToFaceBoard
+          <SeatedBoard
+            variant={seatedVariant}
+            seats={seats}
             players={players}
             board={coop.board}
             stats={coop.stats}
@@ -183,7 +197,7 @@ export function BoardScreen() {
             {turnTransition.active && (
               <TurnTransitionOverlay player={players.find((p) => p.name === turnTransition.playerName)} />
             )}
-          </FaceToFaceBoard>
+          </SeatedBoard>
           {paused && <PauseMenu onClose={() => setPaused(false)} />}
           {showConfirm && (
             <ConfirmReveal
@@ -203,44 +217,14 @@ export function BoardScreen() {
         <div aria-live="polite" className="sr-only">
           {announce}
         </div>
-        <div className={`flex flex-wrap items-center justify-between gap-2 ${settings.leftHanded ? 'flex-row-reverse' : ''}`}>
-          <div className="flex flex-wrap gap-2">
-            {players.map((p) => (
-              <PlayerStatusCard
-                key={p.id}
-                player={p}
-                stats={coop.stats[p.id]}
-                active={p.id === active.id}
-                showLives
-                compact
-              />
-            ))}
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold">🏆 {coop.teamScore}</span>
-            <span className="text-sm font-semibold">💣 {countRemainingMines(coop.board)} left</span>
-            {settings.coopTeamTimerSeconds > 0 && (
-              <TurnTimer
-                seconds={settings.coopTeamTimerSeconds}
-                resetKey="coop-team-timer"
-                paused={paused || turnTransition.active}
-                onExpire={expireTimer}
-              />
-            )}
-            <SegmentedControl
-              ariaLabel="Action mode"
-              value={actionMode}
-              onChange={setActionMode}
-              options={[
-                { value: 'reveal', label: '🔍 Reveal' },
-                { value: 'flag', label: '🚩 Flag' },
-              ]}
-            />
-            <Button variant="ghost" onClick={() => setPaused(true)} aria-label="Pause">
-              ⏸
-            </Button>
-          </div>
-        </div>
+        <PlayerRail
+          players={players}
+          activeId={active.id}
+          reverse={settings.leftHanded}
+          renderPlayer={(p) => (
+            <PlayerStatusCard player={p} stats={coop.stats[p.id]} active={p.id === active.id} showLives compact />
+          )}
+        />
         {pendingSelection && (
           <p className="rounded-[var(--md-radius-md)] bg-[var(--md-cell-flag-bg)] px-3 py-2 text-sm font-semibold">
             Peek reward ready — tap any hidden tile to inspect it before {active.name}'s move.
@@ -262,12 +246,36 @@ export function BoardScreen() {
             actionMode={actionMode}
             disabled={paused || turnTransition.active || Boolean(peekResolved)}
             tileSizePref={tileSizePref}
-            orientationDeg={orientationDeg}
+            mistakePos={mistakePosFromEvents(lastEvents)}
             peekPosition={coop.pendingPeek && coop.pendingPeek.position.x !== -1 ? coop.pendingPeek.position : null}
             peekSafe={coop.pendingPeek?.safe}
             onAction={handleAction}
           />
           {turnTransition.active && <TurnTransitionOverlay player={players.find((p) => p.name === turnTransition.playerName)} />}
+        </div>
+        <div className={`flex flex-wrap items-center justify-center gap-x-4 gap-y-2 ${settings.leftHanded ? 'flex-row-reverse' : ''}`}>
+          <span className="text-sm font-semibold">🏆 {coop.teamScore}</span>
+          <span className="text-sm font-semibold">💣 {countRemainingMines(coop.board)} left</span>
+          {settings.coopTeamTimerSeconds > 0 && (
+            <TurnTimer
+              seconds={settings.coopTeamTimerSeconds}
+              resetKey="coop-team-timer"
+              paused={paused || turnTransition.active}
+              onExpire={expireTimer}
+            />
+          )}
+          <SegmentedControl
+            ariaLabel="Action mode"
+            value={actionMode}
+            onChange={setActionMode}
+            options={[
+              { value: 'reveal', label: '🔍 Reveal' },
+              { value: 'flag', label: '🚩 Flag' },
+            ]}
+          />
+          <Button variant="ghost" onClick={() => setPaused(true)} aria-label="Pause">
+            ⏸
+          </Button>
         </div>
         {paused && <PauseMenu onClose={() => setPaused(false)} />}
         {showConfirm && (
@@ -285,15 +293,16 @@ export function BoardScreen() {
 
   const duel = match as DuelState;
   const active = players[duel.activePlayerIndex];
-  const orientationDeg = face2face && duel.activePlayerIndex === 1 ? 180 : 0;
 
-  if (face2face && players.length === 2) {
+  if (seatedVariant) {
     return (
       <>
         <div aria-live="polite" className="sr-only">
           {announce}
         </div>
-        <FaceToFaceBoard
+        <SeatedBoard
+          variant={seatedVariant}
+          seats={seats}
           players={players}
           board={duel.board}
           stats={duel.stats}
@@ -323,7 +332,7 @@ export function BoardScreen() {
           {turnTransition.active && (
             <TurnTransitionOverlay player={players.find((p) => p.name === turnTransition.playerName)} />
           )}
-        </FaceToFaceBoard>
+        </SeatedBoard>
         {paused && <PauseMenu onClose={() => setPaused(false)} />}
         {showConfirm && (
           <ConfirmReveal
@@ -343,40 +352,19 @@ export function BoardScreen() {
       <div aria-live="polite" className="sr-only">
         {announce}
       </div>
-      <div className={`flex flex-wrap items-center justify-between gap-2 ${settings.leftHanded ? 'flex-row-reverse' : ''}`}>
-        <div className="flex flex-wrap gap-2">
-          {players.map((p) => (
-            <PlayerStatusCard key={p.id} player={p} stats={duel.stats[p.id]} active={p.id === active.id} showLives={duel.settings.duelVariant === 'survival'} />
-          ))}
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold">💣 {countRemainingMines(duel.board)} left</span>
-          {duel.settings.duelTimer.enabled && (
-            <TurnTimer
-              // Reset on every action (turnActionsCount) as well as on turn
-              // change (activePlayerIndex) — so an actively-playing streak never
-              // times out. The timer only passes the turn when it runs out
-              // without the player acting.
-              seconds={duel.settings.duelTimer.seconds}
-              resetKey={`${duel.activePlayerIndex}-${duel.turnActionsCount}`}
-              paused={paused || turnTransition.active}
-              onExpire={expireTimer}
-            />
-          )}
-          <SegmentedControl
-            ariaLabel="Action mode"
-            value={actionMode}
-            onChange={setActionMode}
-            options={[
-              { value: 'reveal', label: '🔍 Reveal' },
-              { value: 'flag', label: '🚩 Flag' },
-            ]}
+      <PlayerRail
+        players={players}
+        activeId={active.id}
+        reverse={settings.leftHanded}
+        renderPlayer={(p) => (
+          <PlayerStatusCard
+            player={p}
+            stats={duel.stats[p.id]}
+            active={p.id === active.id}
+            showLives={duel.settings.duelVariant === 'survival'}
           />
-          <Button variant="ghost" onClick={() => setPaused(true)} aria-label="Pause">
-            ⏸
-          </Button>
-        </div>
-      </div>
+        )}
+      />
       <div className="relative min-h-0 flex-1">
         <BoardView
           board={duel.board}
@@ -385,10 +373,35 @@ export function BoardScreen() {
           actionMode={actionMode}
           disabled={paused || turnTransition.active}
           tileSizePref={tileSizePref}
-          orientationDeg={orientationDeg}
+          mistakePos={mistakePosFromEvents(lastEvents)}
           onAction={handleAction}
         />
         {turnTransition.active && <TurnTransitionOverlay player={players.find((p) => p.name === turnTransition.playerName)} />}
+      </div>
+      <div className={`flex flex-wrap items-center justify-center gap-x-4 gap-y-2 ${settings.leftHanded ? 'flex-row-reverse' : ''}`}>
+        <span className="text-sm font-semibold">💣 {countRemainingMines(duel.board)} left</span>
+        {duel.settings.duelTimer.enabled && (
+          <TurnTimer
+            // Reset on every action (turnActionsCount) as well as on turn change
+            // (activePlayerIndex) — an actively-playing streak never times out.
+            seconds={duel.settings.duelTimer.seconds}
+            resetKey={`${duel.activePlayerIndex}-${duel.turnActionsCount}`}
+            paused={paused || turnTransition.active}
+            onExpire={expireTimer}
+          />
+        )}
+        <SegmentedControl
+          ariaLabel="Action mode"
+          value={actionMode}
+          onChange={setActionMode}
+          options={[
+            { value: 'reveal', label: '🔍 Reveal' },
+            { value: 'flag', label: '🚩 Flag' },
+          ]}
+        />
+        <Button variant="ghost" onClick={() => setPaused(true)} aria-label="Pause">
+          ⏸
+        </Button>
       </div>
       {paused && <PauseMenu onClose={() => setPaused(false)} />}
       {showConfirm && (

@@ -7,7 +7,7 @@ export async function startMatch(
     width?: number;
     height?: number;
     mines?: number;
-    arrangement?: 'Automatic' | 'Side-by-side' | 'Face-to-face' | 'Table';
+    arrangement?: 'Side-by-side' | 'Face-to-face' | 'Table';
   },
 ) {
   await page.goto('/');

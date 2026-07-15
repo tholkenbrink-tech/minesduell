@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import type { ActionMode, GameEvent, GameMode, GameSettings, Player, Position } from '../engine/types';
+import type { ActionMode, DeviceArrangement, GameEvent, GameMode, GameSettings, Player, Position } from '../engine/types';
 import { defaultSettingsForMode } from '../engine/defaults';
+import { defaultSeats, migrateArrangement, type PlayerSeat } from '../engine/arrangement';
 import { cloneBoard } from '../engine/board';
 import { hashSeed, mulberry32 } from '../engine/rng';
 import { readJSON, writeJSON, removeKey, STORAGE_KEYS } from '../engine/persistence';
@@ -91,8 +92,21 @@ interface PersistedShape {
   mode: GameMode;
   players: Player[];
   settings: GameSettings;
+  seats: PlayerSeat[];
   seedBase: number | null;
   match: MatchState | null;
+}
+
+/**
+ * The authoritative remaining value for the active countdown, keyed by the
+ * timer's resetKey. Lifting it out of the TurnTimer component means a component
+ * remount (e.g. when the device arrangement switches) restores the same value
+ * instead of resetting to full — the resetKey is unchanged by a switch, so the
+ * partially-elapsed timer is preserved. Ephemeral: never persisted.
+ */
+interface TimerState {
+  resetKey: string | number;
+  remaining: number;
 }
 
 interface MatchStore {
@@ -100,6 +114,7 @@ interface MatchStore {
   mode: GameMode;
   players: Player[];
   settings: GameSettings;
+  seats: PlayerSeat[];
   seedBase: number | null;
   match: MatchState | null;
   actionMode: ActionMode;
@@ -108,11 +123,21 @@ interface MatchStore {
   lastEvents: GameEvent[];
   feed: FeedEvent[];
   turnTransition: TurnTransition;
+  timerState: TimerState | null;
 
   goToModeSelect: () => void;
   selectMode: (mode: GameMode) => void;
   setPlayers: (players: Player[]) => void;
   updateSettings: (patch: Partial<GameSettings>) => void;
+  /**
+   * Switch the device arrangement (and optional explicit seats) mid-match from
+   * the pause menu. Presentation-only: it never touches the match, active
+   * player, turn, timer value, or paused flag — all gameplay state is
+   * preserved and the game stays paused until the user resumes.
+   */
+  setArrangement: (arrangement: DeviceArrangement, seats?: PlayerSeat[]) => void;
+  /** Persist the active countdown's remaining value so a remount can restore it. */
+  syncTimer: (resetKey: string | number, remaining: number) => void;
   goToConfig: () => void;
   startGame: () => void;
   setActionMode: (mode: ActionMode) => void;
@@ -222,7 +247,7 @@ function announceFor(events: GameEvent[], players: Player[]): string {
   return parts.join(' ');
 }
 
-function persistActive(state: Pick<MatchStore, 'screen' | 'mode' | 'players' | 'settings' | 'seedBase' | 'match'>) {
+function persistActive(state: Pick<MatchStore, 'screen' | 'mode' | 'players' | 'settings' | 'seats' | 'seedBase' | 'match'>) {
   if (state.screen !== 'board' || !state.match) {
     removeKey(STORAGE_KEYS.activeMatch);
     return;
@@ -234,6 +259,7 @@ function persistActive(state: Pick<MatchStore, 'screen' | 'mode' | 'players' | '
     mode: state.mode,
     players: state.players,
     settings: state.settings,
+    seats: state.seats,
     seedBase: state.seedBase,
     match: strippedMatch as MatchState,
   });
@@ -245,11 +271,20 @@ function restoreActiveMatch(): Partial<MatchStore> | null {
   if (saved.match.mode === 'coop') {
     (saved.match as CoopState).rng = mulberry32(saved.match.boardSeed ^ hashSeed('coop-rewards'));
   }
+  // Migrate a legacy 'auto' (or any unknown) arrangement to a supported one,
+  // and rebuild seats if the saved data predates the arrangement layer.
+  const arrangement = migrateArrangement(saved.settings.arrangement);
+  const settings: GameSettings = { ...saved.settings, arrangement };
+  const seats =
+    saved.seats && saved.seats.length === saved.players.length
+      ? saved.seats
+      : defaultSeats(arrangement, saved.players.map((p) => p.id));
   return {
     screen: saved.screen,
     mode: saved.mode,
     players: saved.players,
-    settings: saved.settings,
+    settings,
+    seats,
     seedBase: saved.seedBase,
     match: saved.match,
   };
@@ -260,6 +295,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
   mode: 'duel',
   players: [],
   settings: defaultSettingsForMode('duel'),
+  seats: [],
   seedBase: null,
   match: null,
   actionMode: 'reveal',
@@ -268,6 +304,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
   lastEvents: [],
   feed: [],
   turnTransition: { active: false, playerName: '' },
+  timerState: null,
   ...restoreActiveMatch(),
 
   goToModeSelect: () => set({ screen: 'mode-select' }),
@@ -288,12 +325,33 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     if (mode === 'race') match = createRaceMatch(settings, players, seed);
     else if (mode === 'coop') match = createCoopMatch(settings, players, seed);
     else match = createDuelMatch(settings, players, seed);
-    const next = { screen: 'board' as const, match, seedBase: seed, paused: false, actionMode: 'reveal' as const, feed: [] };
+    const seats = defaultSeats(settings.arrangement, players.map((p) => p.id));
+    const next = {
+      screen: 'board' as const,
+      match,
+      seats,
+      seedBase: seed,
+      paused: false,
+      actionMode: 'reveal' as const,
+      feed: [],
+      timerState: null,
+    };
     set(next);
     persistActive({ ...get(), ...next });
   },
 
   setActionMode: (actionMode) => set({ actionMode }),
+
+  setArrangement: (arrangement, seats) => {
+    const { players, settings } = get();
+    const nextSeats = seats ?? defaultSeats(arrangement, players.map((p) => p.id));
+    // Presentation-only: match, activePlayerIndex, turnActionsCount, timerState,
+    // and paused are all left untouched so no gameplay state changes.
+    set({ settings: { ...settings, arrangement }, seats: nextSeats });
+    persistActive(get());
+  },
+
+  syncTimer: (resetKey, remaining) => set({ timerState: { resetKey, remaining } }),
 
   reveal: (pos) => {
     const { match, mode, players, paused } = get();
@@ -394,7 +452,8 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     if (mode === 'race') match = createRaceMatch(settings, players, seed);
     else if (mode === 'coop') match = createCoopMatch(settings, players, seed);
     else match = createDuelMatch(settings, players, seed);
-    set({ match, seedBase: seed, screen: 'board', paused: false, feed: [] });
+    const seats = defaultSeats(settings.arrangement, players.map((p) => p.id));
+    set({ match, seats, seedBase: seed, screen: 'board', paused: false, feed: [], timerState: null });
     persistActive(get());
   },
 
@@ -409,7 +468,8 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     if (mode === 'race') match = createRaceMatch(settings, players, seed);
     else if (mode === 'coop') match = createCoopMatch(settings, players, seed);
     else match = createDuelMatch(settings, players, seed);
-    set({ match, seedBase: seed, screen: 'board', paused: false, feed: [] });
+    const seats = defaultSeats(settings.arrangement, players.map((p) => p.id));
+    set({ match, seats, seedBase: seed, screen: 'board', paused: false, feed: [], timerState: null });
     persistActive(get());
   },
 
