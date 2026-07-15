@@ -35,6 +35,52 @@ import { usePrefsStore } from './usePrefsStore';
 export type Screen = 'mode-select' | 'player-setup' | 'game-config' | 'board' | 'results';
 export type MatchState = DuelState | RaceState | CoopState;
 
+/**
+ * A short-lived, UI-only feedback event that drives the face-to-face seam chip
+ * (phone) and the mirrored event log (tablet). Derived from the engine's typed
+ * GameEvents after each action; deliberately NOT part of the engine/match state
+ * (never persisted — it's ephemeral presentation state).
+ */
+export type FeedEventKind = 'flag-correct' | 'flag-wrong' | 'mine-hit' | 'cascade';
+
+export interface FeedEvent {
+  id: number;
+  playerId?: string;
+  kind: FeedEventKind;
+  tileCount?: number;
+  ts: number;
+}
+
+/** How many recent feed events the tablet event log keeps (most-recent first). */
+const FEED_MAX = 3;
+
+let feedSeq = 0;
+
+/**
+ * Collapses one action's GameEvents into at most a single feed event, keeping
+ * the most salient outcome (a mistake outranks a correct flag outranks a
+ * notable cascade). A lone single-tile reveal produces nothing — the feed only
+ * surfaces events worth calling out across the table.
+ */
+function buildFeedEvent(events: GameEvent[]): Omit<FeedEvent, 'id' | 'ts'> | null {
+  const mineHit = events.find((e) => e.type === 'MINE_REVEALED');
+  if (mineHit) return { playerId: mineHit.playerId, kind: 'mine-hit' };
+
+  const correct = events.find((e) => e.type === 'MINE_CORRECTLY_FLAGGED');
+  if (correct) return { playerId: correct.playerId, kind: 'flag-correct' };
+
+  const wrong = events.find((e) => e.type === 'SAFE_CELL_INCORRECTLY_FLAGGED');
+  if (wrong) return { playerId: wrong.playerId, kind: 'flag-wrong' };
+
+  const cascade = events.find((e) => e.type === 'ZERO_REGION_EXPANDED');
+  if (cascade) {
+    const expanded = typeof cascade.data?.count === 'number' ? cascade.data.count : 0;
+    // +1 for the origin cell the player actually clicked.
+    return { playerId: cascade.playerId, kind: 'cascade', tileCount: expanded + 1 };
+  }
+  return null;
+}
+
 interface TurnTransition {
   active: boolean;
   playerName: string;
@@ -60,6 +106,7 @@ interface MatchStore {
   paused: boolean;
   announce: string;
   lastEvents: GameEvent[];
+  feed: FeedEvent[];
   turnTransition: TurnTransition;
 
   goToModeSelect: () => void;
@@ -219,6 +266,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
   paused: false,
   announce: '',
   lastEvents: [],
+  feed: [],
   turnTransition: { active: false, playerName: '' },
   ...restoreActiveMatch(),
 
@@ -240,7 +288,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     if (mode === 'race') match = createRaceMatch(settings, players, seed);
     else if (mode === 'coop') match = createCoopMatch(settings, players, seed);
     else match = createDuelMatch(settings, players, seed);
-    const next = { screen: 'board' as const, match, seedBase: seed, paused: false, actionMode: 'reveal' as const };
+    const next = { screen: 'board' as const, match, seedBase: seed, paused: false, actionMode: 'reveal' as const, feed: [] };
     set(next);
     persistActive({ ...get(), ...next });
   },
@@ -346,7 +394,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     if (mode === 'race') match = createRaceMatch(settings, players, seed);
     else if (mode === 'coop') match = createCoopMatch(settings, players, seed);
     else match = createDuelMatch(settings, players, seed);
-    set({ match, seedBase: seed, screen: 'board', paused: false });
+    set({ match, seedBase: seed, screen: 'board', paused: false, feed: [] });
     persistActive(get());
   },
 
@@ -361,12 +409,12 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     if (mode === 'race') match = createRaceMatch(settings, players, seed);
     else if (mode === 'coop') match = createCoopMatch(settings, players, seed);
     else match = createDuelMatch(settings, players, seed);
-    set({ match, seedBase: seed, screen: 'board', paused: false });
+    set({ match, seedBase: seed, screen: 'board', paused: false, feed: [] });
     persistActive(get());
   },
 
   clearActiveMatch: () => {
-    set({ match: null, screen: 'mode-select' });
+    set({ match: null, screen: 'mode-select', feed: [] });
     removeKey(STORAGE_KEYS.activeMatch);
   },
 }));
@@ -417,6 +465,10 @@ function applyResult(
   } else if (match.status !== 'playing') {
     screen = 'results';
   }
-  set({ match, lastEvents: events, announce: announce || get().announce, screen });
+  const built = buildFeedEvent(events);
+  const feed = built
+    ? [{ id: ++feedSeq, ts: Date.now(), ...built }, ...get().feed].slice(0, FEED_MAX)
+    : get().feed;
+  set({ match, lastEvents: events, feed, announce: announce || get().announce, screen });
   persistActive(get());
 }

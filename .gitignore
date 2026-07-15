@@ -18,6 +18,9 @@ playwright-report
 blob-report
 playwright/.cache
 
+# Design handoff reference bundle (not part of the app)
+design_handoff_face_to_face
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

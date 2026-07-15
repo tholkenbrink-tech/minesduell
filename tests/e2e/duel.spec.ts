@@ -69,17 +69,23 @@ test('a mistake ends the turn and rotates the active player', async ({ page }) =
   expect(sawSwitch).toBe(true);
 });
 
-test('face-to-face arrangement rotates board content 180° for the second player', async ({ page }) => {
+test('face-to-face keeps the shared board neutral and rotates the far player HUD 180°', async ({ page }) => {
   await startMatch(page, { mode: 'Duel', width: 6, height: 6, mines: 1, arrangement: 'Face-to-face' });
-  await page.getByRole('radio', { name: '🚩 Flag' }).click();
 
+  // The board between the two seats is neutral ground — its tile content is
+  // never rotated (rotate(180deg) would resolve to a matrix containing -1).
   const cells = gridCells(page);
-  let rotated = false;
-  for (let i = 0; i < 12 && !rotated; i++) {
-    await cells.nth(i).click();
-    const transform = await cells.first().locator('span').first().evaluate((el) => getComputedStyle(el).transform);
-    // rotate(180deg) resolves to matrix(-1, 0, 0, -1, 0, 0); rotate(0) is 'none' or identity matrix.
-    if (transform.includes('-1')) rotated = true;
-  }
-  expect(rotated).toBe(true);
+  const tileTransform = await cells.first().locator('span').first().evaluate((el) => getComputedStyle(el).transform);
+  expect(tileTransform.includes('-1')).toBe(false);
+
+  // Instead, the far player's whole HUD row is rotated 180° so it reads upright
+  // from across the table. Exactly the row's root element carries the rotation
+  // (its children/ancestors are not themselves rotated).
+  const farHudRotated = await page.evaluate(() =>
+    [...document.querySelectorAll('div')].some((el) => {
+      const t = getComputedStyle(el).transform;
+      return t.includes('-1') && /Player 2/.test(el.textContent || '');
+    }),
+  );
+  expect(farHudRotated).toBe(true);
 });

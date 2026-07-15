@@ -1,46 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap');
 @import "tailwindcss";
 
+/*
+ * Arcade Neon is the app's single theme. The previous light/dark token sets
+ * have been collapsed into one neon palette, so every screen inherits it
+ * through the existing --md-* variables without per-component changes. The
+ * additive --md-neon-* tokens carry the semantic feedback colors (correct /
+ * mistake) and player accents the face-to-face board attribution relies on.
+ */
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
 
-  --md-bg: #eef1f5;
-  --md-bg-glow: radial-gradient(1200px 600px at 50% -10%, rgba(16, 185, 129, 0.10), transparent 70%);
-  --md-surface: #ffffff;
-  --md-surface-2: #e9edf2;
-  --md-text: #0c1116;
-  --md-text-muted: #5b6672;
-  --md-border: #dce2e8;
-  --md-accent: #10b981;
-  --md-accent-2: #0ea5a4;
-  --md-accent-contrast: #04140d;
-  --md-accent-soft: rgba(16, 185, 129, 0.12);
-  --md-danger: #e0483a;
-  --md-warning: #c98a1a;
+  /* Display face for numerals, names, and HUD labels (design: Space Grotesk). */
+  --md-font-display: 'Space Grotesk', system-ui, 'Segoe UI', Roboto, sans-serif;
 
-  --md-shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
-  --md-shadow-md: 0 4px 12px rgba(16, 24, 40, 0.08), 0 2px 4px rgba(16, 24, 40, 0.06);
-  --md-shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.14), 0 4px 8px rgba(16, 24, 40, 0.06);
+  /* --- Arcade Neon feedback + accent tokens (additive) --- */
+  --md-neon-bg: #0a0b14;
+  --md-neon-pink: #ff3cac;
+  --md-neon-cyan: #00e5ff;
+  --md-neon-green: #3cff9d;
+  --md-neon-red: #ff4d5e;
+  --md-neon-amber: #ffb020;
+  --md-neon-text: #f4f2ff;
+  --md-neon-text-muted: #9a97c9;
 
-  --md-cell-hidden: #cbd4dc;
-  --md-cell-hidden-2: #bcc7d1;
-  --md-cell-hidden-hover: #d7e0e8;
-  --md-cell-revealed: #f3f6f9;
-  --md-cell-flag-bg: #ffedc2;
-  --md-cell-mine-bg: #f6cdc7;
+  /* --- Core surface + text palette, mapped onto the neon look --- */
+  --md-bg: var(--md-neon-bg);
+  --md-bg-glow: radial-gradient(1200px 600px at 50% -10%, rgba(255, 60, 172, 0.12), transparent 70%);
+  --md-surface: #171a38;
+  --md-surface-2: #10122a;
+  --md-text: var(--md-neon-text);
+  --md-text-muted: var(--md-neon-text-muted);
+  --md-border: rgba(255, 255, 255, 0.12);
+  --md-accent: var(--md-neon-pink);
+  --md-accent-2: var(--md-neon-cyan);
+  --md-accent-contrast: #0a0b14;
+  --md-accent-soft: rgba(255, 60, 172, 0.14);
+  --md-danger: var(--md-neon-red);
+  --md-warning: var(--md-neon-amber);
 
-  --md-num-1: #1e63d8;
-  --md-num-2: #1f8a4c;
-  --md-num-3: #cf3232;
-  --md-num-4: #6a3fb5;
-  --md-num-5: #8a3324;
-  --md-num-6: #1f9490;
-  --md-num-7: #202730;
-  --md-num-8: #5b6672;
+  --md-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --md-shadow-md: 0 6px 18px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4);
+  --md-shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.6), 0 4px 10px rgba(0, 0, 0, 0.45);
 
-  --md-player-coral: #e05c4d;
-  --md-player-teal: #1f9490;
-  --md-player-violet: #7a5cd1;
-  --md-player-amber: #c98a1a;
+  --md-cell-hidden: #232752;
+  --md-cell-hidden-2: #171933;
+  --md-cell-hidden-hover: #2c3164;
+  --md-cell-revealed: #0d0e1f;
+  --md-cell-flag-bg: #241236;
+  --md-cell-mine-bg: #3f1119;
+
+  /* Neon tile-number colors (design source of truth). */
+  --md-num-1: #4fd6ff;
+  --md-num-2: #5cff9d;
+  --md-num-3: #ff6b6b;
+  --md-num-4: #c084fc;
+  --md-num-5: #ffb020;
+  --md-num-6: #4fe0d0;
+  --md-num-7: #f4f2ff;
+  --md-num-8: #9a97c9;
+
+  /* Player accents remapped to neon-distinct hues (index order:
+     coral→pink, teal→cyan, violet, amber). */
+  --md-player-coral: #ff3cac;
+  --md-player-teal: #00e5ff;
+  --md-player-violet: #c084fc;
+  --md-player-amber: #ffb020;
 
   --md-radius-sm: 6px;
   --md-radius-md: 10px;
@@ -52,80 +77,6 @@
   background: var(--md-bg);
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
-}
-
-:root[data-theme='dark'] {
-  --md-bg: #0b1013;
-  --md-bg-glow: radial-gradient(1200px 600px at 50% -10%, rgba(52, 211, 153, 0.10), transparent 70%);
-  --md-surface: #141b20;
-  --md-surface-2: #1c252b;
-  --md-text: #eef2f5;
-  --md-text-muted: #93a1ab;
-  --md-border: #29343b;
-  --md-accent: #34d399;
-  --md-accent-2: #2dd4bf;
-  --md-accent-contrast: #04140d;
-  --md-accent-soft: rgba(52, 211, 153, 0.14);
-  --md-danger: #ff6b5c;
-  --md-warning: #e0b23d;
-
-  --md-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --md-shadow-md: 0 6px 18px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.35);
-  --md-shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.55), 0 4px 10px rgba(0, 0, 0, 0.4);
-
-  --md-cell-hidden: #37444d;
-  --md-cell-hidden-2: #2c383f;
-  --md-cell-hidden-hover: #435159;
-  --md-cell-revealed: #151d22;
-  --md-cell-flag-bg: #4a3f1c;
-  --md-cell-mine-bg: #4a2622;
-
-  --md-num-1: #6ea8ff;
-  --md-num-2: #6fe0a0;
-  --md-num-3: #ff8a80;
-  --md-num-4: #c1a3ff;
-  --md-num-5: #e0a98f;
-  --md-num-6: #6fe3df;
-  --md-num-7: #e8edf1;
-  --md-num-8: #93a1ab;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --md-bg: #0b1013;
-    --md-bg-glow: radial-gradient(1200px 600px at 50% -10%, rgba(52, 211, 153, 0.10), transparent 70%);
-    --md-surface: #141b20;
-    --md-surface-2: #1c252b;
-    --md-text: #eef2f5;
-    --md-text-muted: #93a1ab;
-    --md-border: #29343b;
-    --md-accent: #34d399;
-    --md-accent-2: #2dd4bf;
-    --md-accent-contrast: #04140d;
-    --md-accent-soft: rgba(52, 211, 153, 0.14);
-    --md-danger: #ff6b5c;
-    --md-warning: #e0b23d;
-
-    --md-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --md-shadow-md: 0 6px 18px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.35);
-    --md-shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.55), 0 4px 10px rgba(0, 0, 0, 0.4);
-
-    --md-cell-hidden: #37444d;
-    --md-cell-hidden-2: #2c383f;
-    --md-cell-hidden-hover: #435159;
-    --md-cell-revealed: #151d22;
-    --md-cell-flag-bg: #4a3f1c;
-    --md-cell-mine-bg: #4a2622;
-
-    --md-num-1: #6ea8ff;
-    --md-num-2: #6fe0a0;
-    --md-num-3: #ff8a80;
-    --md-num-4: #c1a3ff;
-    --md-num-5: #e0a98f;
-    --md-num-6: #6fe3df;
-    --md-num-7: #e8edf1;
-    --md-num-8: #93a1ab;
-  }
 }
 
 :root[data-high-contrast='true'] {
@@ -189,6 +140,11 @@ button {
   outline-offset: 2px;
 }
 
+/* Display type for numerals / names / HUD labels. */
+.md-display {
+  font-family: var(--md-font-display);
+}
+
 @keyframes md-fade-in {
   from {
     opacity: 0;
@@ -215,6 +171,45 @@ button {
 
 .md-pop-in {
   animation: md-pop-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Chip that scales in with a slight overshoot, holds, then is removed by JS.
+   Used for the seam feedback chip on a correct/mistake event. */
+@keyframes md-chip-in {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.md-chip-in {
+  animation: md-chip-in 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Brief horizontal shake for a mistake tile (mine hit / misflag). The global
+   reduced-motion overrides above neutralize it automatically. */
+@keyframes md-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-2px);
+  }
+  50% {
+    transform: translateX(2px);
+  }
+  75% {
+    transform: translateX(-2px);
+  }
+}
+
+.md-shake {
+  animation: md-shake 200ms ease-in-out;
 }
 
 /* Gradient brand text for the wordmark. */
@@ -249,17 +244,17 @@ button {
 
 /* --- Board tiles: rounded, with a subtle raised/recessed feel --- */
 .md-tile {
-  border-radius: 5px;
+  border-radius: 8px;
   transition:
     background-color 120ms ease,
     box-shadow 120ms ease,
     transform 80ms ease;
 }
 .md-tile-hidden {
-  background: linear-gradient(180deg, var(--md-cell-hidden), var(--md-cell-hidden-2));
+  background: linear-gradient(155deg, var(--md-cell-hidden), var(--md-cell-hidden-2));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    0 1px 1.5px rgba(0, 0, 0, 0.14);
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 2px 4px rgba(0, 0, 0, 0.4);
 }
 @media (hover: hover) {
   .md-tile-hidden:hover {
@@ -268,16 +263,66 @@ button {
 }
 .md-tile-revealed {
   background: var(--md-cell-revealed);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 .md-tile-flag {
-  background: var(--md-cell-flag-bg);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  background: linear-gradient(155deg, #2c1230, #1a0d24);
 }
 .md-tile-mine {
-  background: var(--md-cell-mine-bg);
+  background: radial-gradient(circle at 50% 40%, #ff5a5a 0%, #7a0f16 70%);
 }
 .md-tile-peek-danger {
   background: var(--md-cell-mine-bg);
 }
 
+/* --- Face-to-face tile attribution: ring says right/wrong, dot says who --- */
+.md-tile-ring-correct {
+  border: 2px solid var(--md-neon-green);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--md-neon-green) 60%, transparent);
+}
+.md-tile-ring-wrong {
+  border: 2px solid var(--md-neon-red);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--md-neon-red) 67%, transparent);
+}
+.md-owner-dot {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid var(--md-neon-bg);
+}
+
+/* --- Mirrored feedback (seam chip + tablet event log) --- */
+.md-feed-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-family: var(--md-font-display);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.md-feed-correct {
+  background: rgba(60, 255, 157, 0.12);
+  border: 1px solid var(--md-neon-green);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--md-neon-green) 40%, transparent);
+  color: var(--md-neon-green);
+}
+.md-feed-wrong {
+  background: rgba(255, 77, 94, 0.12);
+  border: 1px solid var(--md-neon-red);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--md-neon-red) 40%, transparent);
+  color: var(--md-neon-red);
+}
+.md-feed-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}

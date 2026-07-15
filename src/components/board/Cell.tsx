@@ -19,23 +19,38 @@ interface CellProps {
   focused?: boolean;
   isPeek?: boolean;
   peekSafe?: boolean;
+  /** Briefly shake this tile — set when it's the tile of the latest mistake. */
+  shake?: boolean;
 }
 
-function CellImpl({ cell, size, players, orientationDeg, focused, isPeek, peekSafe }: CellProps) {
-  const owner = cell.flaggedBy ? players.find((p) => p.id === cell.flaggedBy) : undefined;
+function CellImpl({ cell, size, players, orientationDeg, focused, isPeek, peekSafe, shake }: CellProps) {
+  // Attribution ownership: a flag is owned by whoever placed it; a revealed
+  // mine by whoever detonated it. The ring says right/wrong, the dot says who.
+  const ownerId = cell.flagged ? cell.flaggedBy : cell.revealed && cell.mine ? cell.revealedBy : undefined;
+  const owner = ownerId ? players.find((p) => p.id === ownerId) : undefined;
 
   let tileClass = 'md-tile-hidden';
+  let ringClass = '';
   let content: React.ReactNode = null;
 
   if (cell.revealed) {
     if (cell.mine) {
       tileClass = 'md-tile-mine';
-      content = <span aria-hidden>💣</span>;
+      ringClass = 'md-tile-ring-wrong';
+      content = <span aria-hidden>💥</span>;
     } else {
       tileClass = 'md-tile-revealed';
       if (cell.adjacent > 0) {
         content = (
-          <span aria-hidden style={{ color: NUMBER_COLOR_VAR[cell.adjacent], fontWeight: 800 }}>
+          <span
+            aria-hidden
+            className="md-display"
+            style={{
+              color: NUMBER_COLOR_VAR[cell.adjacent],
+              fontWeight: 700,
+              textShadow: `0 0 8px color-mix(in srgb, ${NUMBER_COLOR_VAR[cell.adjacent]} 60%, transparent)`,
+            }}
+          >
             {cell.adjacent}
           </span>
         );
@@ -43,19 +58,9 @@ function CellImpl({ cell, size, players, orientationDeg, focused, isPeek, peekSa
     }
   } else if (cell.flagged) {
     tileClass = 'md-tile-flag';
-    content = (
-      <span className="relative flex items-center justify-center" aria-hidden>
-        <span>🚩</span>
-        {owner && (
-          <span
-            className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center rounded-full text-[7px] font-bold text-white ring-1 ring-white/60"
-            style={{ background: THEME_VAR[owner.theme] }}
-          >
-            {owner.name.charAt(0).toUpperCase()}
-          </span>
-        )}
-      </span>
-    );
+    // Correct flag (over a real mine) rings green; a misflag rings red.
+    ringClass = cell.mine ? 'md-tile-ring-correct' : 'md-tile-ring-wrong';
+    content = <span aria-hidden>🚩</span>;
   } else if (isPeek) {
     tileClass = peekSafe ? 'md-tile-revealed' : 'md-tile-peek-danger';
     content = <span aria-hidden>{peekSafe ? '·' : '!'}</span>;
@@ -80,7 +85,7 @@ function CellImpl({ cell, size, players, orientationDeg, focused, isPeek, peekSa
       style={{ width: size, height: size }}
     >
       <div
-        className={`md-tile ${tileClass} absolute inset-[1px] flex items-center justify-center`}
+        className={`md-tile ${tileClass} ${ringClass} ${shake ? 'md-shake' : ''} absolute inset-[1px] flex items-center justify-center`}
         style={
           focused
             ? { outline: '2px solid var(--md-accent)', outlineOffset: -1, zIndex: 1 }
@@ -88,6 +93,16 @@ function CellImpl({ cell, size, players, orientationDeg, focused, isPeek, peekSa
         }
       >
         <span style={{ transform: `rotate(${orientationDeg}deg)`, display: 'inline-flex' }}>{content}</span>
+        {owner && (
+          <span
+            className="md-owner-dot"
+            aria-hidden
+            style={{
+              background: THEME_VAR[owner.theme],
+              boxShadow: `0 0 6px ${THEME_VAR[owner.theme]}`,
+            }}
+          />
+        )}
       </div>
     </div>
   );

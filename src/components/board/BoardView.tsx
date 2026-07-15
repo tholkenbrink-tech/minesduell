@@ -22,6 +22,8 @@ export interface BoardViewProps {
   orientationDeg?: 0 | 180;
   peekPosition?: Position | null;
   peekSafe?: boolean;
+  /** Tile of the latest mistake (mine hit / misflag) — gets a brief shake. */
+  mistakePos?: Position | null;
   onAction: (kind: 'reveal' | 'flag', pos: Position) => void;
   onFocusCursorChange?: (pos: Position) => void;
 }
@@ -44,6 +46,7 @@ export function BoardView({
   orientationDeg = 0,
   peekPosition,
   peekSafe,
+  mistakePos,
   onAction,
   onFocusCursorChange,
 }: BoardViewProps) {
@@ -295,6 +298,7 @@ export function BoardView({
                   focused={cursor.x === x && cursor.y === y}
                   isPeek={peekPosition?.x === x && peekPosition?.y === y}
                   peekSafe={peekSafe}
+                  shake={mistakePos?.x === x && mistakePos?.y === y}
                 />
               ))}
             </div>
