@@ -5,11 +5,6 @@ import type { CoopState } from '../engine/coop';
 import { PlayerBadge } from '../components/PlayerBadge';
 import { Button, Card } from '../components/ui';
 
-function average(nums: number[]): number {
-  if (nums.length === 0) return 0;
-  return Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
-}
-
 export function ResultsScreen() {
   const match = useMatchStore((s) => s.match) as MatchState | null;
   const mode = useMatchStore((s) => s.mode);
@@ -46,11 +41,8 @@ export function ResultsScreen() {
             <tr className="text-[var(--md-text-muted)]">
               <th className="py-1">Player</th>
               <th>Mines</th>
-              <th>Territory</th>
               <th>Wrong flags</th>
               <th>Mines hit</th>
-              <th>Best streak</th>
-              <th>Avg turn</th>
             </tr>
           </thead>
           <tbody>
@@ -62,11 +54,8 @@ export function ResultsScreen() {
                     <PlayerBadge player={p} size={22} /> {p.name}
                   </td>
                   <td>{s.minesDetected}</td>
-                  <td>{s.safeCellsRevealed}</td>
                   <td>{s.incorrectFlags}</td>
                   <td>{s.minesTriggered}</td>
-                  <td>{s.longestStreak}</td>
-                  <td>{average(s.turnDurationsMs.map((ms) => ms / 1000))}s</td>
                 </tr>
               );
             })}

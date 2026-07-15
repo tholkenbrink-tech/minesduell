@@ -1,12 +1,10 @@
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
 import type { ActionMode, Board, Player, PlayerStats, Position } from '../../engine/types';
 import type { PlayerSeat, SeatPosition, SeatRotation } from '../../engine/arrangement';
 import { seatForPlayer } from '../../engine/arrangement';
 import type { FeedEvent } from '../../store/useMatchStore';
 import { BoardView } from './BoardView';
 import { TurnTimer } from '../hud/TurnTimer';
-import { SegmentedControl, Button } from '../ui';
 import { useIsWide } from '../../hooks/useMediaQuery';
 
 const THEME_VAR: Record<Player['theme'], string> = {
@@ -36,14 +34,16 @@ export interface SeatedBoardProps {
   showLives: boolean;
   minesLeft: number;
   actionMode: ActionMode;
-  setActionMode: (m: ActionMode) => void;
   onAction: (kind: 'reveal' | 'flag', pos: Position) => void;
-  onPause: () => void;
   disabled: boolean;
   tileSizePref: 'compact' | 'comfortable' | 'large';
   feed: FeedEvent[];
   mistakePos: Position | null;
   timer: SeatedTimerConfig | null;
+  /** The movable Reveal/Mark control dock, laid over the play field. It already
+   *  carries the active seat's rotation, so this shell only positions the board
+   *  and HUD around it. */
+  overlay?: ReactNode;
   /** Overlay slot rendered above the neutral board (e.g. turn transition). */
   children?: ReactNode;
 }
@@ -74,10 +74,10 @@ export function SeatedBoard(props: SeatedBoardProps) {
         tileSizePref={props.tileSizePref}
         orientationDeg={activeRotation}
         mistakePos={props.mistakePos}
-        showCenterButton={props.variant === 'face-to-face'}
+        showCenterButton={false}
+        overlay={props.overlay}
         onAction={props.onAction}
       />
-      <SeamFeedback feed={props.feed} players={props.players} rotation={activeRotation} />
       {props.children}
     </div>
   );
@@ -85,7 +85,7 @@ export function SeatedBoard(props: SeatedBoardProps) {
   if (props.variant === 'face-to-face') {
     return <FaceToFaceLayout {...props} boardEl={board} />;
   }
-  return <TableLayout {...props} boardEl={board} activeSeat={activeSeat} />;
+  return <TableLayout {...props} boardEl={board} />;
 }
 
 // ---------------------------------------------------------------------------
@@ -100,9 +100,6 @@ function FaceToFaceLayout({
   activePlayerIndex,
   showLives,
   minesLeft,
-  actionMode,
-  setActionMode,
-  onPause,
   feed,
   timer,
   boardEl,
@@ -139,28 +136,13 @@ function FaceToFaceLayout({
         flip
         timerSlot={timerFor(players.findIndex((p) => p.id === top.id))}
       />
-      {/* Controls dock in whichever band is active; the inactive band reserves
-          the same height so the board never shifts between turns. */}
-      <ControlBand
-        active={topActive}
-        flip
-        wide={wide}
-        actionMode={actionMode}
-        setActionMode={setActionMode}
-        onPause={onPause}
-      />
       {wide && <EventLog feed={feed} players={players} flip />}
 
+      {/* The Reveal/Mark controls live in the movable dock laid over the board
+          (props.overlay), docked by default to the active player's side. */}
       <div className="relative mx-2.5 min-h-0 flex-1">{boardEl}</div>
 
       {wide && <EventLog feed={feed} players={players} />}
-      <ControlBand
-        active={bottomActive}
-        wide={wide}
-        actionMode={actionMode}
-        setActionMode={setActionMode}
-        onPause={onPause}
-      />
       <NeonHudRow
         player={bottom}
         stats={stats[bottom.id]}
@@ -170,40 +152,6 @@ function FaceToFaceLayout({
         wide={wide}
         timerSlot={timerFor(players.findIndex((p) => p.id === bottom.id))}
       />
-    </div>
-  );
-}
-
-/**
- * Fixed-height control band. Renders the Reveal/Flag + Pause cluster when this
- * band's seat is active, otherwise an equal-height spacer so the board stays put
- * as the turn passes. `flip` rotates it 180° for the top player.
- */
-function ControlBand({
-  active,
-  flip,
-  wide,
-  actionMode,
-  setActionMode,
-  onPause,
-}: {
-  active: boolean;
-  flip?: boolean;
-  wide: boolean;
-  actionMode: ActionMode;
-  setActionMode: (m: ActionMode) => void;
-  onPause: () => void;
-}) {
-  return (
-    <div
-      className="flex items-center justify-center"
-      style={{ height: 50, transform: flip ? 'rotate(180deg)' : undefined }}
-    >
-      {active ? (
-        <ActionCluster wide={wide} actionMode={actionMode} setActionMode={setActionMode} onPause={onPause} />
-      ) : (
-        <div aria-hidden className="h-0" />
-      )}
     </div>
   );
 }
@@ -221,13 +169,9 @@ function TableLayout({
   activePlayerIndex,
   showLives,
   minesLeft,
-  actionMode,
-  setActionMode,
-  onPause,
   timer,
   boardEl,
-  activeSeat,
-}: Omit<SeatedBoardProps, 'board'> & { boardEl: ReactNode; activeSeat: PlayerSeat | undefined }) {
+}: Omit<SeatedBoardProps, 'board'> & { boardEl: ReactNode }) {
   const wide = useIsWide();
   const activeId = players[activePlayerIndex]?.id;
   const seatOf = (pos: SeatPosition) => seats.find((s) => s.position === pos);
@@ -255,7 +199,6 @@ function TableLayout({
     const player = playerAt(pos);
     if (!player) return <div />;
     const active = player.id === activeId;
-    const vertical = pos === 'left' || pos === 'right';
     return (
       <div className="flex items-center justify-center p-1.5">
         <div
@@ -263,16 +206,8 @@ function TableLayout({
           style={{ transform: `rotate(${SEAT_ROTATION_DEG[pos]}deg)` }}
         >
           <SeatChip player={player} stats={stats[player.id]} active={active} showLives={showLives} minesLeft={minesLeft} />
+          {/* Reveal/Mark controls are provided by the movable dock over the board. */}
           {active && timerSlot(pos) && <div className="w-28">{timerSlot(pos)}</div>}
-          {active && (
-            <ActionCluster
-              wide={wide}
-              vertical={vertical && wide}
-              actionMode={actionMode}
-              setActionMode={setActionMode}
-              onPause={onPause}
-            />
-          )}
         </div>
       </div>
     );
@@ -301,38 +236,41 @@ function TableLayout({
   }
 
   // Compact (phone): corner indicators + a single floating active-control cluster.
+  // Reserve an edge gutter on each OCCUPIED side so the active seat's floating
+  // controls (and corner indicators) dock clear of the board instead of sitting
+  // on top of the tiles. Unoccupied sides keep only a hairline margin.
+  const occupied = new Set(seats.map((s) => s.position));
   return (
     <div
       className="relative h-full w-full"
-      style={{ paddingTop: 44, paddingBottom: 44 }}
+      style={{
+        paddingTop: occupied.has('top') ? 48 : 8,
+        paddingBottom: occupied.has('bottom') ? 48 : 8,
+        paddingLeft: occupied.has('left') ? 56 : 8,
+        paddingRight: occupied.has('right') ? 56 : 8,
+      }}
     >
-      <div className="relative h-full w-full px-2">{boardEl}</div>
+      {/* Reveal/Mark + Pause come from the movable dock over the board; the
+          active seat's corner carries its mines-left and (if any) turn timer. */}
+      <div className="relative h-full w-full">{boardEl}</div>
       {seats.map((s) => {
         const player = players.find((p) => p.id === s.playerId);
         if (!player) return null;
+        const active = player.id === activeId;
         return (
           <CornerIndicator
             key={s.playerId}
             player={player}
             stats={stats[player.id]}
-            active={player.id === activeId}
+            active={active}
             showLives={showLives}
             corner={CORNER_FOR_SEAT[s.position]}
             rotation={SEAT_ROTATION_DEG[s.position]}
+            minesLeft={active ? minesLeft : undefined}
+            timerNode={active ? timerSlot(s.position) : null}
           />
         );
       })}
-      {activeSeat && (
-        <FloatingActiveControls
-          seat={activeSeat.position}
-          rotation={SEAT_ROTATION_DEG[activeSeat.position]}
-          minesLeft={minesLeft}
-          timerSlot={timerSlot(activeSeat.position)}
-          actionMode={actionMode}
-          setActionMode={setActionMode}
-          onPause={onPause}
-        />
-      )}
     </div>
   );
 }
@@ -485,7 +423,9 @@ function SeatChip({
   );
 }
 
-/** Small always-on player indicator pinned to a screen corner (phone Table). */
+/** Small always-on player indicator pinned to a screen corner (phone Table).
+ *  The active player's corner also carries mines-left and (if enabled) the turn
+ *  timer, so nothing collides with the movable control dock over the board. */
 function CornerIndicator({
   player,
   stats,
@@ -493,6 +433,8 @@ function CornerIndicator({
   showLives,
   corner,
   rotation,
+  minesLeft,
+  timerNode,
 }: {
   player: Player;
   stats: PlayerStats;
@@ -500,151 +442,44 @@ function CornerIndicator({
   showLives: boolean;
   corner: 'bl' | 'br' | 'tr' | 'tl';
   rotation: number;
+  minesLeft?: number;
+  timerNode?: ReactNode;
 }) {
   const color = THEME_VAR[player.theme];
   return (
     <div
-      className="pointer-events-none absolute z-10 flex items-center gap-1 rounded-full py-0.5 pl-0.5 pr-2"
+      className="pointer-events-none absolute z-10 flex flex-col gap-1"
       style={{
         ...CORNER_STYLE[corner],
         transform: `rotate(${rotation}deg)`,
-        background: 'rgba(10,11,20,0.82)',
-        border: `1px solid ${color}`,
-        boxShadow: active ? `0 0 12px ${color}aa` : `0 0 6px ${color}55`,
-        opacity: active ? 1 : 0.66,
+        alignItems: 'flex-start',
       }}
     >
-      <span
-        aria-hidden
-        className="rounded-full"
-        style={{ width: 18, height: 18, background: `radial-gradient(circle at 35% 30%, ${color}, ${color}55)` }}
-      />
-      <span className="md-display font-bold text-[var(--md-neon-text)]" style={{ fontSize: 10 }}>
-        {player.name}
-      </span>
-      <span className="md-display font-semibold text-[var(--md-neon-text-muted)]" style={{ fontSize: 10 }}>
-        💎{stats.minesDetected}
-        {showLives && !stats.eliminated && Number.isFinite(stats.lives) ? ` ❤️${stats.lives}` : ''}
-        {stats.eliminated ? ' · out' : ''}
-      </span>
-    </div>
-  );
-}
-
-/**
- * Floating, rotated control cluster docked on the active seat's side (phone
- * Table). Left/right seats get a vertical stack; top/bottom a horizontal strip.
- * Respects safe-area insets so it never sits under the Home indicator/Dynamic
- * Island.
- */
-function FloatingActiveControls({
-  seat,
-  rotation,
-  minesLeft,
-  timerSlot,
-  actionMode,
-  setActionMode,
-  onPause,
-}: {
-  seat: SeatPosition;
-  rotation: number;
-  minesLeft: number;
-  timerSlot: ReactNode;
-  actionMode: ActionMode;
-  setActionMode: (m: ActionMode) => void;
-  onPause: () => void;
-}) {
-  const edgeStyle: React.CSSProperties =
-    seat === 'bottom'
-      ? { left: 0, right: 0, bottom: 'max(6px, env(safe-area-inset-bottom))', justifyContent: 'center' }
-      : seat === 'top'
-        ? { left: 0, right: 0, top: 'max(6px, env(safe-area-inset-top))', justifyContent: 'center' }
-        : seat === 'left'
-          ? { top: 0, bottom: 0, left: 'max(2px, env(safe-area-inset-left))', flexDirection: 'column', justifyContent: 'center' }
-          : { top: 0, bottom: 0, right: 'max(2px, env(safe-area-inset-right))', flexDirection: 'column', justifyContent: 'center' };
-
-  return (
-    <div className="pointer-events-none absolute z-10 flex" style={edgeStyle}>
-      <div className="pointer-events-auto flex items-center gap-2" style={{ transform: `rotate(${rotation}deg)` }}>
-        {timerSlot && <div className="w-24">{timerSlot}</div>}
-        <ActionCluster wide={false} actionMode={actionMode} setActionMode={setActionMode} onPause={onPause} />
-        <span className="md-display font-bold text-[var(--md-neon-text)]" style={{ fontSize: 11 }}>
-          💣 {minesLeft}
+      <div
+        className="flex items-center gap-1 rounded-full py-0.5 pl-0.5 pr-2"
+        style={{
+          background: 'rgba(10,11,20,0.82)',
+          border: `1px solid ${color}`,
+          boxShadow: active ? `0 0 12px ${color}aa` : `0 0 6px ${color}55`,
+          opacity: active ? 1 : 0.66,
+        }}
+      >
+        <span
+          aria-hidden
+          className="rounded-full"
+          style={{ width: 18, height: 18, background: `radial-gradient(circle at 35% 30%, ${color}, ${color}55)` }}
+        />
+        <span className="md-display font-bold text-[var(--md-neon-text)]" style={{ fontSize: 10 }}>
+          {player.name}
+        </span>
+        <span className="md-display font-semibold text-[var(--md-neon-text-muted)]" style={{ fontSize: 10 }}>
+          💎{stats.minesDetected}
+          {showLives && !stats.eliminated && Number.isFinite(stats.lives) ? ` ❤️${stats.lives}` : ''}
+          {stats.eliminated ? ' · out' : ''}
+          {minesLeft != null ? ` 💣${minesLeft}` : ''}
         </span>
       </div>
-    </div>
-  );
-}
-
-/**
- * The Reveal / Flag / Pause controls. Radios keep 44px+ touch targets. `wide`
- * uses the roomy segmented control; `vertical` stacks the buttons for a
- * left/right iPad seat instead of rotating a wide toolbar (avoids overflow).
- */
-function ActionCluster({
-  wide,
-  vertical,
-  actionMode,
-  setActionMode,
-  onPause,
-}: {
-  wide: boolean;
-  vertical?: boolean;
-  actionMode: ActionMode;
-  setActionMode: (m: ActionMode) => void;
-  onPause: () => void;
-}) {
-  if (wide && !vertical) {
-    return (
-      <div className="flex items-center justify-center gap-3">
-        <SegmentedControl
-          ariaLabel="Action mode"
-          value={actionMode}
-          onChange={setActionMode}
-          options={[
-            { value: 'reveal', label: '🔍 Reveal' },
-            { value: 'flag', label: '🚩 Flag' },
-          ]}
-        />
-        <Button variant="ghost" onClick={onPause} aria-label="Pause">
-          ⏸
-        </Button>
-      </div>
-    );
-  }
-
-  const actions: { value: ActionMode; icon: string; label: string }[] = [
-    { value: 'reveal', icon: '🔍', label: 'Reveal' },
-    { value: 'flag', icon: '🚩', label: 'Flag' },
-  ];
-  return (
-    <div className={`flex items-center justify-center gap-2 ${vertical ? 'flex-col' : ''}`}>
-      {actions.map((a) => {
-        const on = actionMode === a.value;
-        return (
-          <button
-            key={a.value}
-            type="button"
-            role="radio"
-            aria-checked={on}
-            aria-label={`${a.icon} ${a.label}`}
-            onClick={() => setActionMode(a.value)}
-            className="focus-ring flex items-center justify-center rounded-[10px] text-[17px]"
-            style={{
-              minWidth: 44,
-              minHeight: 44,
-              background: on ? 'linear-gradient(120deg, var(--md-neon-pink), #8b5cf6)' : 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              boxShadow: on ? '0 0 10px color-mix(in srgb, var(--md-neon-pink) 47%, transparent)' : 'none',
-            }}
-          >
-            {a.icon}
-          </button>
-        );
-      })}
-      <Button variant="ghost" onClick={onPause} aria-label="Pause">
-        ⏸
-      </Button>
+      {timerNode && <div className="w-24">{timerNode}</div>}
     </div>
   );
 }
@@ -692,35 +527,6 @@ function FeedChip({
     >
       <span className="md-feed-dot" style={{ background: copy.dotColor }} />
       {copy.icon} {copy.text}
-    </div>
-  );
-}
-
-/**
- * Transient mirrored callout of the latest event, centered on the shared board.
- * The primary chip is rotated to the active seat so the current player reads it
- * upright; a second unrotated chip keeps it legible from the bottom seat too.
- */
-function SeamFeedback({ feed, players, rotation }: { feed: FeedEvent[]; players: Player[]; rotation: number }) {
-  const wide = useIsWide();
-  const latest = feed[0] ?? null;
-  const [visibleId, setVisibleId] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!latest) return;
-    setVisibleId(latest.id);
-    const t = setTimeout(() => setVisibleId(null), 2000);
-    return () => clearTimeout(t);
-  }, [latest?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  if (!latest || visibleId !== latest.id) return null;
-  const copy = feedCopy(latest, players);
-  const size = wide ? 13 : 11;
-
-  return (
-    <div className="pointer-events-none absolute left-1/2 top-1/2 z-[5] flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5">
-      <FeedChip copy={copy} size={size} rotation={rotation} animate />
-      {rotation !== 0 && <FeedChip copy={copy} size={size} animate />}
     </div>
   );
 }

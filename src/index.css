@@ -45,10 +45,14 @@
   --md-shadow-md: 0 6px 18px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4);
   --md-shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.6), 0 4px 10px rgba(0, 0, 0, 0.45);
 
-  --md-cell-hidden: #333a80;
-  --md-cell-hidden-2: #232963;
-  --md-cell-hidden-hover: #3e4699;
-  --md-cell-revealed: #15172f;
+  /* Hidden tiles lifted well clear of the near-black board so the grid of
+     unrevealed cells reads clearly (raised, brighter indigo). */
+  --md-cell-hidden: #4652c4;
+  --md-cell-hidden-2: #2f3894;
+  --md-cell-hidden-hover: #5561dc;
+  /* Revealed cells lightened + given a defined edge so an empty tile no longer
+     melts into the background. */
+  --md-cell-revealed: #23274f;
   --md-cell-flag-bg: #241236;
   --md-cell-mine-bg: #3f1119;
 
@@ -255,8 +259,9 @@ button {
 .md-tile-hidden {
   background: linear-gradient(155deg, var(--md-cell-hidden), var(--md-cell-hidden-2));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    0 2px 4px rgba(0, 0, 0, 0.45);
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 2px 5px rgba(0, 0, 0, 0.5);
 }
 @media (hover: hover) {
   .md-tile-hidden:hover {
@@ -265,7 +270,9 @@ button {
 }
 .md-tile-revealed {
   background: var(--md-cell-revealed);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  /* A defined inner edge gives every revealed cell a visible gridline against
+     its neighbors and the board so empty cells stay legible. */
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.13);
 }
 .md-tile-flag {
   background: linear-gradient(155deg, #2c1230, #1a0d24);

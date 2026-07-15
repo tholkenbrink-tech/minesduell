@@ -8,6 +8,7 @@ import {
   isArrangementCompatible,
   migrateArrangement,
   renderArrangement,
+  resolveControlAnchor,
   seatForPlayer,
 } from '../arrangement';
 
@@ -135,5 +136,29 @@ describe('arrangement — eliminated players keep their seat', () => {
     const after = seatForPlayer(seats, 'p2');
     expect(after).toEqual(before);
     expect(after?.position).toBe('top');
+  });
+});
+
+describe('arrangement — control anchor resolution', () => {
+  it('defaults an unset anchor to the active seat side', () => {
+    // Side-by-side seats everyone at the bottom → the natural anchor is bottom.
+    expect(resolveControlAnchor(null, 'bottom')).toBe('bottom');
+    // Table seat sides map to their own edge so controls dock beside the player.
+    expect(resolveControlAnchor(null, 'right')).toBe('right');
+    expect(resolveControlAnchor(null, 'top')).toBe('top');
+    expect(resolveControlAnchor(null, 'left')).toBe('left');
+  });
+
+  it('falls back to bottom when there is no seat', () => {
+    expect(resolveControlAnchor(null, undefined)).toBe('bottom');
+    expect(resolveControlAnchor(undefined, undefined)).toBe('bottom');
+  });
+
+  it('lets an explicit user override win everywhere, over any seat side', () => {
+    // The whole point of the movable dock: the saved choice beats the default,
+    // regardless of which seat is active (Face-to-Face / Table included).
+    expect(resolveControlAnchor('center', 'right')).toBe('center');
+    expect(resolveControlAnchor('bottom', 'top')).toBe('bottom');
+    expect(resolveControlAnchor('left', 'bottom')).toBe('left');
   });
 });

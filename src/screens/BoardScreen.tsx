@@ -8,11 +8,12 @@ import type { RaceState } from '../engine/race';
 import type { CoopState } from '../engine/coop';
 import { BoardView } from '../components/board/BoardView';
 import { SeatedBoard } from '../components/board/SeatedBoard';
-import { isArrangementCompatible, renderArrangement } from '../engine/arrangement';
+import { ControlDock } from '../components/board/ControlDock';
+import { isArrangementCompatible, renderArrangement, resolveControlAnchor, seatForPlayer } from '../engine/arrangement';
 import { PlayerStatusCard } from '../components/hud/PlayerStatusCard';
 import { PlayerRail } from '../components/hud/PlayerRail';
 import { TurnTimer } from '../components/hud/TurnTimer';
-import { SegmentedControl, Button } from '../components/ui';
+import { Button } from '../components/ui';
 import { PauseMenu } from '../components/PauseMenu';
 import { TurnTransitionOverlay } from '../components/TurnTransitionOverlay';
 import { RaceHandover } from '../components/RaceHandover';
@@ -47,6 +48,8 @@ export function BoardScreen() {
   const feed = useMatchStore((s) => s.feed);
   const lastEvents = useMatchStore((s) => s.lastEvents);
   const tileSizePref = usePrefsStore((s) => s.tileSize);
+  const controlAnchors = usePrefsStore((s) => s.controlAnchors);
+  const setControlAnchor = usePrefsStore((s) => s.setControlAnchor);
 
   const [showConfirm, setShowConfirm] = useState<{ x: number; y: number } | null>(null);
 
@@ -76,6 +79,25 @@ export function BoardScreen() {
     [mode, match, peekAt, reveal, flag, settings.confirmDangerousReveal],
   );
 
+  // The movable Reveal/Mark control dock for whichever player is active. It sits
+  // over the play field, defaults to the active seat's side (bottom for
+  // side-by-side), and is re-anchored + persisted per player slot. `rotation`
+  // keeps the toggle upright for that seat regardless of where it's docked.
+  const buildDock = (activeIndex: number) => {
+    const seat = seatForPlayer(seats, players[activeIndex]?.id);
+    return (
+      <ControlDock
+        slotIndex={activeIndex}
+        anchor={resolveControlAnchor(controlAnchors[activeIndex], seat?.position)}
+        rotation={seat?.rotation ?? 0}
+        actionMode={actionMode}
+        setActionMode={setActionMode}
+        onPause={() => setPaused(true)}
+        onAnchorChange={setControlAnchor}
+      />
+    );
+  };
+
   if (!match) return null;
 
   // The selected arrangement is the source of truth. Device size never changes
@@ -104,21 +126,7 @@ export function BoardScreen() {
         </div>
         <div className={`flex items-center justify-between gap-3 ${settings.leftHanded ? 'flex-row-reverse' : ''}`}>
           <PlayerStatusCard player={currentPlayer} stats={run.stats} active showLives />
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold">💣 {countRemainingMines(run.board)} left</span>
-            <SegmentedControl
-              ariaLabel="Action mode"
-              value={actionMode}
-              onChange={setActionMode}
-              options={[
-                { value: 'reveal', label: '🔍 Reveal' },
-                { value: 'flag', label: '🚩 Flag' },
-              ]}
-            />
-            <Button variant="ghost" onClick={() => setPaused(true)} aria-label="Pause">
-              ⏸
-            </Button>
-          </div>
+          <span className="text-sm font-semibold">💣 {countRemainingMines(run.board)} left</span>
         </div>
         <div className="relative min-h-0 flex-1">
           <BoardView
@@ -128,6 +136,7 @@ export function BoardScreen() {
             actionMode={actionMode}
             disabled={paused}
             tileSizePref={tileSizePref}
+            overlay={buildDock(raceState.currentIndex)}
             onAction={handleAction}
           />
         </div>
@@ -161,9 +170,8 @@ export function BoardScreen() {
             showLives
             minesLeft={countRemainingMines(coop.board)}
             actionMode={actionMode}
-            setActionMode={setActionMode}
             onAction={handleAction}
-            onPause={() => setPaused(true)}
+            overlay={buildDock(coop.activePlayerIndex)}
             disabled={paused || turnTransition.active || Boolean(peekResolved)}
             tileSizePref={tileSizePref}
             feed={feed}
@@ -249,6 +257,7 @@ export function BoardScreen() {
             mistakePos={mistakePosFromEvents(lastEvents)}
             peekPosition={coop.pendingPeek && coop.pendingPeek.position.x !== -1 ? coop.pendingPeek.position : null}
             peekSafe={coop.pendingPeek?.safe}
+            overlay={buildDock(coop.activePlayerIndex)}
             onAction={handleAction}
           />
           {turnTransition.active && <TurnTransitionOverlay player={players.find((p) => p.name === turnTransition.playerName)} />}
@@ -264,18 +273,6 @@ export function BoardScreen() {
               onExpire={expireTimer}
             />
           )}
-          <SegmentedControl
-            ariaLabel="Action mode"
-            value={actionMode}
-            onChange={setActionMode}
-            options={[
-              { value: 'reveal', label: '🔍 Reveal' },
-              { value: 'flag', label: '🚩 Flag' },
-            ]}
-          />
-          <Button variant="ghost" onClick={() => setPaused(true)} aria-label="Pause">
-            ⏸
-          </Button>
         </div>
         {paused && <PauseMenu onClose={() => setPaused(false)} />}
         {showConfirm && (
@@ -310,9 +307,8 @@ export function BoardScreen() {
           showLives={duel.settings.duelVariant === 'survival'}
           minesLeft={countRemainingMines(duel.board)}
           actionMode={actionMode}
-          setActionMode={setActionMode}
           onAction={handleAction}
-          onPause={() => setPaused(true)}
+          overlay={buildDock(duel.activePlayerIndex)}
           disabled={paused || turnTransition.active}
           tileSizePref={tileSizePref}
           feed={feed}
@@ -374,6 +370,7 @@ export function BoardScreen() {
           disabled={paused || turnTransition.active}
           tileSizePref={tileSizePref}
           mistakePos={mistakePosFromEvents(lastEvents)}
+          overlay={buildDock(duel.activePlayerIndex)}
           onAction={handleAction}
         />
         {turnTransition.active && <TurnTransitionOverlay player={players.find((p) => p.name === turnTransition.playerName)} />}
@@ -390,18 +387,6 @@ export function BoardScreen() {
             onExpire={expireTimer}
           />
         )}
-        <SegmentedControl
-          ariaLabel="Action mode"
-          value={actionMode}
-          onChange={setActionMode}
-          options={[
-            { value: 'reveal', label: '🔍 Reveal' },
-            { value: 'flag', label: '🚩 Flag' },
-          ]}
-        />
-        <Button variant="ghost" onClick={() => setPaused(true)} aria-label="Pause">
-          ⏸
-        </Button>
       </div>
       {paused && <PauseMenu onClose={() => setPaused(false)} />}
       {showConfirm && (

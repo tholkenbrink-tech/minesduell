@@ -1,7 +1,11 @@
 import { create } from 'zustand';
 import { readJSON, writeJSON, STORAGE_KEYS } from '../engine/persistence';
+import type { ControlAnchor } from '../engine/arrangement';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
+
+/** Max players in a match; control anchors are tracked per player slot. */
+const MAX_SLOTS = 4;
 
 export interface Prefs {
   sound: boolean;
@@ -15,6 +19,12 @@ export interface Prefs {
   theme: ThemePreference;
   recentPlayerNames: string[];
   onboardingSeen: boolean;
+  /**
+   * Reveal/Mark control anchor per player slot (index = seat/turn order). `null`
+   * means "use the arrangement's natural spot"; an explicit value is that
+   * player's saved override, reused by slot order in later matches.
+   */
+  controlAnchors: (ControlAnchor | null)[];
 }
 
 const DEFAULT_PREFS: Prefs = {
@@ -29,12 +39,15 @@ const DEFAULT_PREFS: Prefs = {
   theme: 'system',
   recentPlayerNames: [],
   onboardingSeen: false,
+  controlAnchors: Array(MAX_SLOTS).fill(null),
 };
 
 interface PrefsStore extends Prefs {
   setPref: <K extends keyof Prefs>(key: K, value: Prefs[K]) => void;
   addRecentPlayerName: (name: string) => void;
   markOnboardingSeen: () => void;
+  /** Persist (or clear, with `null`) the control anchor for one player slot. */
+  setControlAnchor: (slot: number, anchor: ControlAnchor | null) => void;
 }
 
 function persist(prefs: Prefs) {
@@ -42,7 +55,10 @@ function persist(prefs: Prefs) {
 }
 
 export const usePrefsStore = create<PrefsStore>((set, get) => ({
-  ...readJSON<Prefs>(STORAGE_KEYS.preferences, DEFAULT_PREFS),
+  // Merge onto defaults so preferences saved before a new field existed (e.g.
+  // controlAnchors) still get a valid value rather than `undefined`.
+  ...DEFAULT_PREFS,
+  ...readJSON<Partial<Prefs>>(STORAGE_KEYS.preferences, {}),
   setPref: (key, value) => {
     set({ [key]: value } as Partial<PrefsStore>);
     persist({ ...get(), [key]: value });
@@ -58,6 +74,14 @@ export const usePrefsStore = create<PrefsStore>((set, get) => ({
   markOnboardingSeen: () => {
     set({ onboardingSeen: true });
     persist({ ...get(), onboardingSeen: true });
+  },
+  setControlAnchor: (slot, anchor) => {
+    if (slot < 0) return;
+    const controlAnchors = [...get().controlAnchors];
+    while (controlAnchors.length <= slot) controlAnchors.push(null);
+    controlAnchors[slot] = anchor;
+    set({ controlAnchors });
+    persist({ ...get(), controlAnchors });
   },
 }));
 

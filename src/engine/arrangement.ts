@@ -13,6 +13,39 @@ export type { DeviceArrangement };
 export type SeatPosition = 'bottom' | 'right' | 'top' | 'left';
 export type SeatRotation = 0 | 90 | 180 | 270;
 
+/**
+ * Where the active player's Reveal/Mark control cluster docks on screen. This is
+ * a *position* only — the cluster's content is always rotated upright for the
+ * active seat regardless of anchor. `null` (the default) means "use the natural
+ * spot for the arrangement"; any explicit value is a user override.
+ */
+export type ControlAnchor = 'bottom' | 'top' | 'left' | 'right' | 'center';
+
+/** The five anchors, ordered for a cross/plus-shaped picker overlay. */
+export const CONTROL_ANCHORS: ControlAnchor[] = ['top', 'left', 'center', 'right', 'bottom'];
+
+/** The screen edge a seat's controls naturally dock to when not overridden. */
+const SEAT_ANCHOR: Record<SeatPosition, ControlAnchor> = {
+  bottom: 'bottom',
+  right: 'right',
+  top: 'top',
+  left: 'left',
+};
+
+/**
+ * Resolves where the active player's control cluster sits. A per-slot user
+ * override (persisted in prefs) wins everywhere; otherwise it falls back to the
+ * active seat's natural edge — which is `bottom` for side-by-side (all seats sit
+ * at the bottom) and the seat's own side for the Face-to-Face / Table shells.
+ */
+export function resolveControlAnchor(
+  userAnchor: ControlAnchor | null | undefined,
+  activeSeatPosition: SeatPosition | undefined,
+): ControlAnchor {
+  if (userAnchor) return userAnchor;
+  return activeSeatPosition ? SEAT_ANCHOR[activeSeatPosition] : 'bottom';
+}
+
 /** Clockwise rotation (deg) applied to a seat's player-facing content so it
  *  reads upright from that physical side of the device. */
 export const SEAT_ROTATION: Record<SeatPosition, SeatRotation> = {

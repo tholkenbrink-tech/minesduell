@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Board, Player, Position } from '../../engine/types';
 import { Cell } from './Cell';
 
@@ -29,6 +29,10 @@ export interface BoardViewProps {
   /** Show the "Center" control below the grid. Off for layouts that provide
    *  their own recenter affordance or dock controls at the board edges. */
   showCenterButton?: boolean;
+  /** Absolutely-positioned overlay laid exactly over the play field (e.g. the
+   *  movable Reveal/Mark control dock). Its own children opt back into pointer
+   *  events; taps that miss them fall through to the board. */
+  overlay?: ReactNode;
   onAction: (kind: 'reveal' | 'flag', pos: Position) => void;
   onFocusCursorChange?: (pos: Position) => void;
 }
@@ -53,6 +57,7 @@ export function BoardView({
   peekSafe,
   mistakePos,
   showCenterButton = true,
+  overlay,
   onAction,
   onFocusCursorChange,
 }: BoardViewProps) {
@@ -266,12 +271,21 @@ export function BoardView({
 
   const rows = useMemo(() => board.cells, [board.cells]);
 
+  // Field wash: a subtle full-board tint that shifts with the active mode so the
+  // player can tell Reveal (cyan) from Mark (pink) at a glance / peripherally —
+  // it colors the board frame + a faint inner glow without obscuring any tile.
+  const tint =
+    actionMode === 'flag'
+      ? { ring: 'var(--md-neon-pink)', wash: 'rgba(255, 60, 172, 0.10)' }
+      : { ring: 'var(--md-neon-cyan)', wash: 'rgba(0, 229, 255, 0.08)' };
+
   return (
     <div className="relative flex h-full w-full flex-col">
       <div
         ref={containerRef}
         role="grid"
         aria-label="Minesweeper board"
+        data-action-mode={actionMode}
         tabIndex={0}
         onKeyDown={handleKeyDown}
         onPointerDown={handlePointerDown}
@@ -280,8 +294,14 @@ export function BoardView({
         onPointerCancel={handlePointerUp}
         onWheel={handleWheel}
         onContextMenu={handleContextMenu}
-        className="focus-ring min-h-0 w-full flex-1 touch-none overflow-hidden rounded-[var(--md-radius-lg)] border border-[var(--md-border)] bg-[var(--md-surface-2)]"
-        style={{ touchAction: 'none' }}
+        className="focus-ring relative min-h-0 w-full flex-1 touch-none overflow-hidden rounded-[var(--md-radius-lg)] border"
+        style={{
+          touchAction: 'none',
+          borderColor: `color-mix(in srgb, ${tint.ring} 55%, var(--md-border))`,
+          boxShadow: `inset 0 0 0 2px color-mix(in srgb, ${tint.ring} 28%, transparent), inset 0 0 70px ${tint.wash}`,
+          background: `linear-gradient(0deg, ${tint.wash}, ${tint.wash}), var(--md-surface-2)`,
+          transition: 'border-color 220ms ease, box-shadow 220ms ease, background 220ms ease',
+        }}
       >
         <div
           className="relative"
@@ -310,6 +330,7 @@ export function BoardView({
             </div>
           ))}
         </div>
+        {overlay}
       </div>
       {showCenterButton && (
         <div className="flex shrink-0 justify-center pt-2">
