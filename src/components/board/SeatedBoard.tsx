@@ -77,7 +77,6 @@ export function SeatedBoard(props: SeatedBoardProps) {
         tileSizePref={props.tileSizePref}
         orientationDeg={activeRotation}
         mistakePos={props.mistakePos}
-        showCenterButton={false}
         overlay={props.overlay}
         onAction={props.onAction}
       />

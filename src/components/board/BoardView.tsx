@@ -37,9 +37,6 @@ export interface BoardViewProps {
   peekSafe?: boolean;
   /** Tile of the latest mistake (mine hit / misflag) — gets a brief shake. */
   mistakePos?: Position | null;
-  /** Show the "Center" control below the grid. Off for layouts that provide
-   *  their own recenter affordance or dock controls at the board edges. */
-  showCenterButton?: boolean;
   /** Absolutely-positioned overlay laid exactly over the play field (e.g. the
    *  movable Reveal/Mark control dock). Its own children opt back into pointer
    *  events; taps that miss them fall through to the board. */
@@ -67,7 +64,6 @@ export function BoardView({
   peekPosition,
   peekSafe,
   mistakePos,
-  showCenterButton = true,
   overlay,
   onAction,
   onFocusCursorChange,
@@ -282,20 +278,19 @@ export function BoardView({
     if (pos && !disabled) onAction('flag', pos);
   }
 
-  /** `zoomOverride` lets the new-board reset effects center using zoom=1
-   *  even before the `setZoom(1)` they fire alongside has committed; the
-   *  visible "Center" button omits it to recenter at whatever zoom is current. */
-  function centerBoard(zoomOverride?: number) {
+  /** Recenters the board at 100% zoom — used on mount/resize/new-board only;
+   *  there's no user-facing recenter control (pinch/wheel zoom-out plus pan
+   *  cover that need). */
+  function centerBoard() {
     const el = containerRef.current;
     if (!el) return;
-    const z = zoomOverride ?? zoomRef.current;
     updatePan(
       clampPan(
         {
-          x: (el.clientWidth - boardPixelWidth * z) / 2,
-          y: (el.clientHeight - boardPixelHeight * z) / 2,
+          x: (el.clientWidth - boardPixelWidth) / 2,
+          y: (el.clientHeight - boardPixelHeight) / 2,
         },
-        z,
+        1,
       ),
     );
   }
@@ -310,7 +305,7 @@ export function BoardView({
     updateZoom(1);
     const el = containerRef.current;
     if (el && el.clientWidth > 0 && el.clientHeight > 0) {
-      centerBoard(1);
+      centerBoard();
       centeredRef.current = true;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -328,7 +323,7 @@ export function BoardView({
       const { width, height } = entry.contentRect;
       if (width === 0 || height === 0) return;
       centeredRef.current = true;
-      centerBoard(1);
+      centerBoard();
     });
     observer.observe(el);
     return () => observer.disconnect();
@@ -416,18 +411,6 @@ export function BoardView({
         </div>
         {overlay}
       </div>
-      {showCenterButton && (
-        <div className="flex shrink-0 justify-center pt-2">
-          <button
-            type="button"
-            onClick={() => centerBoard()}
-            className="focus-ring rounded-full border border-[var(--md-border)] bg-[var(--md-surface)] px-4 py-1.5 text-xs font-semibold text-[var(--md-text)] shadow"
-            aria-label="Center board"
-          >
-            ⊙ Center
-          </button>
-        </div>
-      )}
     </div>
   );
 }

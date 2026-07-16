@@ -10,7 +10,6 @@ import { BoardView } from '../components/board/BoardView';
 import { SeatedBoard } from '../components/board/SeatedBoard';
 import { ControlDock } from '../components/board/ControlDock';
 import { isArrangementCompatible, renderArrangement, resolveControlAnchor, seatForPlayer } from '../engine/arrangement';
-import { useIsWide } from '../hooks/useMediaQuery';
 import { PlayerStatusCard } from '../components/hud/PlayerStatusCard';
 import { PlayerRail } from '../components/hud/PlayerRail';
 import { TurnTimer } from '../components/hud/TurnTimer';
@@ -52,9 +51,6 @@ export function BoardScreen() {
   const tileSizePref = usePrefsStore((s) => s.tileSize);
   const controlAnchors = usePrefsStore((s) => s.controlAnchors);
   const setControlAnchor = usePrefsStore((s) => s.setControlAnchor);
-  // Pinch-to-zoom + two-finger pan cover the same need on a phone, so the flat
-  // (non-seated) layout's "Center" button is only shown at tablet-and-up widths.
-  const isWide = useIsWide();
 
   const [showConfirm, setShowConfirm] = useState<{ x: number; y: number } | null>(null);
 
@@ -141,7 +137,6 @@ export function BoardScreen() {
             actionMode={actionMode}
             disabled={paused}
             tileSizePref={tileSizePref}
-            showCenterButton={isWide}
             overlay={buildDock(raceState.currentIndex)}
             onAction={handleAction}
           />
@@ -239,6 +234,26 @@ export function BoardScreen() {
             <PlayerStatusCard player={p} stats={coop.stats[p.id]} active={p.id === active.id} showLives compact />
           )}
         />
+        {/* Game-info strip: a single scrollable line so it never grows tall
+            enough to push the board down or require scrolling to reach. */}
+        <div
+          className={`flex shrink-0 items-center gap-3 overflow-x-auto whitespace-nowrap pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${settings.leftHanded ? 'flex-row-reverse' : ''}`}
+        >
+          <span className="shrink-0 text-sm font-semibold">🏆 {coop.teamScore}</span>
+          <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold">
+            <Icon name="bombMine" size={14} /> {countRemainingMines(coop.board)} left
+          </span>
+          {settings.coopTeamTimerSeconds > 0 && (
+            <div className="w-28 shrink-0">
+              <TurnTimer
+                seconds={settings.coopTeamTimerSeconds}
+                resetKey="coop-team-timer"
+                paused={paused || turnTransition.active}
+                onExpire={expireTimer}
+              />
+            </div>
+          )}
+        </div>
         {pendingSelection && (
           <p className="rounded-[var(--md-radius-md)] bg-[var(--md-cell-flag-bg)] px-3 py-2 text-sm font-semibold">
             Peek reward ready — tap any hidden tile to inspect it before {active.name}'s move.
@@ -260,7 +275,6 @@ export function BoardScreen() {
             actionMode={actionMode}
             disabled={paused || turnTransition.active || Boolean(peekResolved)}
             tileSizePref={tileSizePref}
-            showCenterButton={isWide}
             mistakePos={mistakePosFromEvents(lastEvents)}
             peekPosition={coop.pendingPeek && coop.pendingPeek.position.x !== -1 ? coop.pendingPeek.position : null}
             peekSafe={coop.pendingPeek?.safe}
@@ -268,18 +282,6 @@ export function BoardScreen() {
             onAction={handleAction}
           />
           {turnTransition.active && <TurnTransitionOverlay player={players.find((p) => p.name === turnTransition.playerName)} />}
-        </div>
-        <div className={`flex flex-wrap items-center justify-center gap-x-4 gap-y-2 ${settings.leftHanded ? 'flex-row-reverse' : ''}`}>
-          <span className="text-sm font-semibold">🏆 {coop.teamScore}</span>
-          <span className="inline-flex items-center gap-1 text-sm font-semibold"><Icon name="bombMine" size={14} /> {countRemainingMines(coop.board)} left</span>
-          {settings.coopTeamTimerSeconds > 0 && (
-            <TurnTimer
-              seconds={settings.coopTeamTimerSeconds}
-              resetKey="coop-team-timer"
-              paused={paused || turnTransition.active}
-              onExpire={expireTimer}
-            />
-          )}
         </div>
         {paused && <PauseMenu onClose={() => setPaused(false)} />}
         {showConfirm && (
@@ -368,6 +370,27 @@ export function BoardScreen() {
           />
         )}
       />
+      {/* Game-info strip: a single scrollable line so it never grows tall
+          enough to push the board down or require scrolling to reach. */}
+      <div
+        className={`flex shrink-0 items-center gap-3 overflow-x-auto whitespace-nowrap pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${settings.leftHanded ? 'flex-row-reverse' : ''}`}
+      >
+        <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold">
+          <Icon name="bombMine" size={14} /> {countRemainingMines(duel.board)} left
+        </span>
+        {duel.settings.duelTimer.enabled && (
+          <div className="w-28 shrink-0">
+            <TurnTimer
+              // Reset on every action (turnActionsCount) as well as on turn change
+              // (activePlayerIndex) — an actively-playing streak never times out.
+              seconds={duel.settings.duelTimer.seconds}
+              resetKey={`${duel.activePlayerIndex}-${duel.turnActionsCount}`}
+              paused={paused || turnTransition.active}
+              onExpire={expireTimer}
+            />
+          </div>
+        )}
+      </div>
       <div className="relative min-h-0 flex-1">
         <BoardView
           board={duel.board}
@@ -376,25 +399,11 @@ export function BoardScreen() {
           actionMode={actionMode}
           disabled={paused || turnTransition.active}
           tileSizePref={tileSizePref}
-          showCenterButton={isWide}
           mistakePos={mistakePosFromEvents(lastEvents)}
           overlay={buildDock(duel.activePlayerIndex)}
           onAction={handleAction}
         />
         {turnTransition.active && <TurnTransitionOverlay player={players.find((p) => p.name === turnTransition.playerName)} />}
-      </div>
-      <div className={`flex flex-wrap items-center justify-center gap-x-4 gap-y-2 ${settings.leftHanded ? 'flex-row-reverse' : ''}`}>
-        <span className="inline-flex items-center gap-1 text-sm font-semibold"><Icon name="bombMine" size={14} /> {countRemainingMines(duel.board)} left</span>
-        {duel.settings.duelTimer.enabled && (
-          <TurnTimer
-            // Reset on every action (turnActionsCount) as well as on turn change
-            // (activePlayerIndex) — an actively-playing streak never times out.
-            seconds={duel.settings.duelTimer.seconds}
-            resetKey={`${duel.activePlayerIndex}-${duel.turnActionsCount}`}
-            paused={paused || turnTransition.active}
-            onExpire={expireTimer}
-          />
-        )}
       </div>
       {paused && <PauseMenu onClose={() => setPaused(false)} />}
       {showConfirm && (
