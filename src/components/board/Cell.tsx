@@ -59,10 +59,13 @@ function CellImpl({ cell, size, players, orientationDeg, focused, isPeek, peekSa
       }
     }
   } else if (cell.flagged) {
-    tileClass = 'md-tile-flag';
-    // Correct flag (over a real mine) rings green; a misflag rings red.
-    ringClass = cell.mine ? 'md-tile-ring-correct' : 'md-tile-ring-wrong';
-    content = <span aria-hidden>🚩</span>;
+    // A committed flag is a confirmed, immutable bomb — settled 💣 look. A
+    // fresh (uncommitted) flag keeps the transient 🚩 mark.
+    tileClass = cell.committed ? 'md-tile-flag md-tile-flag-committed' : 'md-tile-flag';
+    // Correct flag (over a real mine) rings green; a misflag rings red. A
+    // committed flag carries its own steady edge instead of the glow ring.
+    ringClass = cell.committed ? '' : cell.mine ? 'md-tile-ring-correct' : 'md-tile-ring-wrong';
+    content = <span aria-hidden>{cell.committed ? '💣' : '🚩'}</span>;
   } else if (isPeek) {
     tileClass = peekSafe ? 'md-tile-revealed' : 'md-tile-peek-danger';
     content = <span aria-hidden>{peekSafe ? '·' : '!'}</span>;
@@ -75,7 +78,9 @@ function CellImpl({ cell, size, players, orientationDeg, focused, isPeek, peekSa
         ? `${cell.adjacent} adjacent mines`
         : 'empty'
     : cell.flagged
-      ? 'flagged'
+      ? cell.committed
+        ? 'confirmed mine'
+        : 'flagged'
       : 'hidden';
 
   return (

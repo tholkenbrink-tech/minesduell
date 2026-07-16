@@ -50,21 +50,23 @@
   --md-cell-hidden: #4652c4;
   --md-cell-hidden-2: #2f3894;
   --md-cell-hidden-hover: #5561dc;
-  /* Revealed cells lightened + given a defined edge so an empty tile no longer
-     melts into the background. */
-  --md-cell-revealed: #23274f;
+  /* Revealed cells darkened to maximize contrast separation at all brightness
+     levels, especially on dim screens where the number colors and tile bg
+     would otherwise appear too similar. */
+  --md-cell-revealed: #0f1226;
   --md-cell-flag-bg: #241236;
   --md-cell-mine-bg: #3f1119;
 
-  /* Neon tile-number colors (design source of truth). */
+  /* Neon tile-number colors (design source of truth).
+     Numbers 4 and 8 brightened for maximum contrast at low screen brightness. */
   --md-num-1: #4fd6ff;
   --md-num-2: #5cff9d;
   --md-num-3: #ff6b6b;
-  --md-num-4: #c084fc;
+  --md-num-4: #e8b3ff;
   --md-num-5: #ffb020;
   --md-num-6: #4fe0d0;
   --md-num-7: #f7f6ff;
-  --md-num-8: #bcb9e6;
+  --md-num-8: #e0dcff;
 
   /* Player accents remapped to neon-distinct hues (index order:
      coral→pink, teal→cyan, violet, amber). */
@@ -276,6 +278,15 @@ button {
 }
 .md-tile-flag {
   background: linear-gradient(155deg, #2c1230, #1a0d24);
+}
+/* Confirmed (committed) bomb: the flag scored and is now immutable. Settled,
+   recessed look — steady green edge, no glow — so it reads as "done" next to
+   the brighter transient just-marked 🚩 tiles. */
+.md-tile-flag-committed {
+  background: var(--md-cell-revealed);
+  border: 2px solid color-mix(in srgb, var(--md-neon-green) 55%, var(--md-border));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  opacity: 0.9;
 }
 .md-tile-mine {
   background: radial-gradient(circle at 50% 40%, #ff5a5a 0%, #7a0f16 70%);

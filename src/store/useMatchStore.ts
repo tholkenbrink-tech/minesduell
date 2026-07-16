@@ -360,7 +360,10 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
       const before = (match as DuelState).activePlayerIndex;
       const { state, events } = applyDuelReveal(match as DuelState, pos);
       const after = (state as DuelState).activePlayerIndex;
-      if (after !== before && (state as DuelState).status === 'playing') triggerTurnTransition(set, get, players[after]?.name ?? '');
+      if (after !== before && (state as DuelState).status === 'playing') {
+        triggerTurnTransition(set, get, players[after]?.name ?? '');
+        set({ actionMode: 'reveal' });
+      }
       applyResult(set, get, { ...state }, events, players);
     } else if (mode === 'race') {
       const { state, events } = applyRaceReveal(match as RaceState, pos);
@@ -369,7 +372,10 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
       const before = (match as CoopState).activePlayerIndex;
       const { state, events } = applyCoopReveal(match as CoopState, pos);
       const after = (state as CoopState).activePlayerIndex;
-      if (after !== before && (state as CoopState).status === 'playing') triggerTurnTransition(set, get, players[after]?.name ?? '');
+      if (after !== before && (state as CoopState).status === 'playing') {
+        triggerTurnTransition(set, get, players[after]?.name ?? '');
+        set({ actionMode: 'reveal' });
+      }
       applyResult(set, get, { ...state }, events, players);
     }
   },
@@ -381,7 +387,10 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
       const before = (match as DuelState).activePlayerIndex;
       const { state, events } = applyDuelFlag(match as DuelState, pos);
       const after = (state as DuelState).activePlayerIndex;
-      if (after !== before && (state as DuelState).status === 'playing') triggerTurnTransition(set, get, players[after]?.name ?? '');
+      if (after !== before && (state as DuelState).status === 'playing') {
+        triggerTurnTransition(set, get, players[after]?.name ?? '');
+        set({ actionMode: 'reveal' });
+      }
       applyResult(set, get, { ...state }, events, players);
     } else if (mode === 'race') {
       const { state, events } = applyRaceFlag(match as RaceState, pos);
@@ -390,7 +399,10 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
       const before = (match as CoopState).activePlayerIndex;
       const { state, events } = applyCoopFlag(match as CoopState, pos);
       const after = (state as CoopState).activePlayerIndex;
-      if (after !== before && (state as CoopState).status === 'playing') triggerTurnTransition(set, get, players[after]?.name ?? '');
+      if (after !== before && (state as CoopState).status === 'playing') {
+        triggerTurnTransition(set, get, players[after]?.name ?? '');
+        set({ actionMode: 'reveal' });
+      }
       applyResult(set, get, { ...state }, events, players);
     }
   },
@@ -435,7 +447,10 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
       const before = (match as DuelState).activePlayerIndex;
       const { state, events } = handleDuelTimerExpired(match as DuelState);
       const after = (state as DuelState).activePlayerIndex;
-      if (after !== before && state.status === 'playing') triggerTurnTransition(set, get, players[after]?.name ?? '');
+      if (after !== before && state.status === 'playing') {
+        triggerTurnTransition(set, get, players[after]?.name ?? '');
+        set({ actionMode: 'reveal' });
+      }
       applyResult(set, get, { ...state }, events, players);
     } else if (mode === 'coop') {
       const { state, events } = handleCoopTeamTimerExpired(match as CoopState);

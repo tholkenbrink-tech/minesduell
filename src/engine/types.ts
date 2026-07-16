@@ -16,6 +16,12 @@ export interface Cell {
   revealedBy?: string;
   /** playerId that correctly flagged this mine */
   flaggedBy?: string;
+  /**
+   * The tile's outcome is final: a scored (correct) flag or a detonated mine.
+   * Committed tiles are immutable — no action may un-reveal, un-flag, or
+   * re-mark them, so a later player can never revert or steal the result.
+   */
+  committed?: boolean;
 }
 
 export interface Board {

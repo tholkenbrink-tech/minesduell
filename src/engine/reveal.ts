@@ -85,12 +85,12 @@ export interface FlagResult {
   correct: boolean | null; // null = flag removed, not a new flag
 }
 
-/** Toggles a flag. Revealed cells cannot be flagged. */
+/** Toggles a flag. Revealed and committed cells cannot be (un)flagged. */
 export function toggleFlag(board: Board, pos: Position, playerId?: string): FlagResult {
   const cell = board.cells[pos.y][pos.x];
   const events: GameEvent[] = [];
 
-  if (cell.revealed) {
+  if (cell.revealed || cell.committed) {
     return { board, events, correct: null };
   }
 

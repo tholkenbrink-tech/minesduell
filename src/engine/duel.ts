@@ -128,12 +128,18 @@ export function applyDuelReveal(state: DuelState, pos: Position): DuelActionResu
   const stats = state.stats[player.id];
 
   const result = revealCell(state.board, pos, player.id);
+  // A tap that changed nothing (already-revealed, flagged, or committed tile)
+  // must be a complete no-op: no action consumed, no turn/streak effects.
+  if (result.events.length === 0) return { state, events };
   events.push(...result.events);
   state.turnActionsCount += 1;
 
   let turnEnds = false;
 
   if (result.hitMine) {
+    // A detonated mine is final — commit the tile so it can never be
+    // un-revealed or re-marked by a later player.
+    state.board.cells[pos.y][pos.x].committed = true;
     // Hitting a mine is a mistake — it always ends the turn (and costs a life
     // in the survival variant). This is one of the only two ways to lose a turn.
     stats.minesTriggered += 1;
@@ -177,12 +183,18 @@ export function applyDuelFlag(state: DuelState, pos: Position): DuelActionResult
   const key = posKey(pos);
 
   const result = toggleFlag(state.board, pos, player.id);
+  // A tap that changed nothing (revealed or committed tile) must be a complete
+  // no-op: no action consumed, no turn/streak effects.
+  if (result.events.length === 0) return { state, events };
   events.push(...result.events);
   state.turnActionsCount += 1;
 
   let turnEnds = state.settings.duelVariant === 'classic';
 
   if (result.correct === true) {
+    // A correct flag is final the moment it scores — commit the tile so no
+    // player (including a later opponent) can un-flag or re-mark it.
+    state.board.cells[pos.y][pos.x].committed = true;
     if (!state.scoredMinePositions.has(key)) {
       stats.minesDetected += 1;
       stats.currentStreak += 1;

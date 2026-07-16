@@ -163,6 +163,78 @@ describe('duel mode', () => {
     expect(state.stats[activeId].minesDetected).toBe(1);
   });
 
+  it('a revealed mine is committed and cannot be reverted after the turn changes', () => {
+    const settings = defaultDuelSettings();
+    let state = createDuelMatch(settings, makePlayers(2), 3);
+    state = applyDuelReveal(state, { x: 0, y: 0 }).state;
+    const minePos = firstMinePosition(state);
+
+    // Player 1 detonates the mine — turn passes to player 2.
+    const p1 = state.players[state.activePlayerIndex].id;
+    applyDuelReveal(state, minePos);
+    expect(state.players[state.activePlayerIndex].id).not.toBe(p1);
+
+    // Player 2 tries to flag and re-reveal the detonated tile — both no-ops.
+    applyDuelFlag(state, minePos);
+    applyDuelReveal(state, minePos);
+    const cell = state.board.cells[minePos.y][minePos.x];
+    expect(cell.revealed).toBe(true);
+    expect(cell.flagged).toBe(false);
+    expect(cell.committed).toBe(true);
+    expect(cell.revealedBy).toBe(p1); // attribution never transfers
+  });
+
+  it('double-click on a committed (scored) flag is a no-op — no un-flag, no steal', () => {
+    const settings = defaultDuelSettings();
+    let state = createDuelMatch(settings, makePlayers(2), 11);
+    state = applyDuelReveal(state, { x: 0, y: 0 }).state;
+    const minePos = firstMinePosition(state);
+
+    // Player 1 marks the mine correctly — the flag scores and commits.
+    const p1 = state.players[state.activePlayerIndex].id;
+    applyDuelFlag(state, minePos);
+    expect(state.board.cells[minePos.y][minePos.x].committed).toBe(true);
+
+    // Pass the turn to player 2, then double-click the committed tile (the
+    // old remove-then-re-mark exploit).
+    handleDuelTimerExpired(state);
+    const p2 = state.players[state.activePlayerIndex].id;
+    expect(p2).not.toBe(p1);
+    applyDuelFlag(state, minePos); // "remove"
+    applyDuelFlag(state, minePos); // "re-mark"
+
+    const cell = state.board.cells[minePos.y][minePos.x];
+    expect(cell.flagged).toBe(true);
+    expect(cell.flaggedBy).toBe(p1); // ownership never transfers
+    expect(state.stats[p1].minesDetected).toBe(1);
+    expect(state.stats[p2].minesDetected).toBe(0);
+  });
+
+  it('no-op taps on committed tiles leave turn and action state untouched (classic variant)', () => {
+    // Classic normally passes the turn on EVERY action — a no-op on a
+    // committed tile must not count as an action or rotate the turn.
+    const settings = { ...defaultDuelSettings(), duelVariant: 'classic' as const };
+    let state = createDuelMatch(settings, makePlayers(2), 11);
+    state = applyDuelReveal(state, { x: 0, y: 0 }).state;
+    const minePos = firstMinePosition(state);
+
+    // Player 2 (after classic turn pass) flags the mine — scores and commits,
+    // and classic passes the turn back to player 1.
+    applyDuelFlag(state, minePos);
+
+    const activeBefore = state.activePlayerIndex;
+    const actionsBefore = state.turnActionsCount;
+    const statsBefore = structuredClone(state.stats);
+
+    applyDuelFlag(state, minePos); // no-op: committed
+    applyDuelReveal(state, minePos); // no-op: flagged + committed
+
+    expect(state.activePlayerIndex).toBe(activeBefore);
+    expect(state.turnActionsCount).toBe(actionsBefore);
+    expect(state.stats).toEqual(statsBefore);
+    expect(state.status).toBe('playing');
+  });
+
   it('first to N mines ends the game immediately with that player as winner', () => {
     const settings = { ...defaultDuelSettings(), duelTarget: { type: 'first-to' as const, count: 2 } };
     let state = createDuelMatch(settings, makePlayers(2), 11);
