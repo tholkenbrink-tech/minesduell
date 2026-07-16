@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Board, Player, Position } from '../../engine/types';
+import { usePrefsStore } from '../../store/usePrefsStore';
+import { vibrate } from '../../lib/haptics';
 import { Cell } from './Cell';
 
 const TILE_SIZE: Record<'compact' | 'comfortable' | 'large', number> = {
@@ -11,6 +13,25 @@ const TILE_SIZE: Record<'compact' | 'comfortable' | 'large', number> = {
 const PAN_MOVE_THRESHOLD = 10; // px before a touch is treated as a pan, not a tap
 const TAP_MAX_DURATION_MS = 500;
 const POST_PAN_LOCK_MS = 220;
+
+/* --- Press-to-mark tuning (adjust these while testing on-device) ---
+ * A deliberate press-and-hold on a tile marks it as a bomb without switching
+ * the Reveal/Mark toggle — the same feel as Haptic Touch on an app icon.
+ * LONG_PRESS_MS is the hold duration before the mark fires: lower = snappier
+ * but easier to trigger from a slow tap; higher = more deliberate. The finger
+ * must stay within LONG_PRESS_MOVE_TOLERANCE px of where it landed (and on
+ * the same tile) or the press is treated as a pan and never marks. */
+const LONG_PRESS_MS = 350;
+const LONG_PRESS_MOVE_TOLERANCE = 8;
+/* Force/3D-Touch enhancement only: a pressure reading strictly between these
+ * bounds means the device has a real analog force sensor (0, 0.5, and 1 are
+ * the spec's synthetic defaults), so a firm press marks before the timer. */
+const FORCE_PRESS_MIN = 0.75;
+const FORCE_PRESS_MAX = 0.999;
+/* Android synthesizes a contextmenu event after a native long-press; if our
+ * timer already marked the tile, a second flag-toggle inside this window
+ * would immediately un-mark it. */
+const LONG_PRESS_CONTEXTMENU_SUPPRESS_MS = 700;
 
 /** Board zoom is clamped to 70%-130% of the default (100%) size. */
 const ZOOM_MIN = 0.7;
@@ -51,6 +72,32 @@ interface ActivePointer {
   startX: number;
   startY: number;
   startTime: number;
+  /** Pending press-to-mark timer for this pointer (null once fired/cancelled). */
+  longPressTimer: ReturnType<typeof setTimeout> | null;
+  /** True once press-to-mark fired — the eventual pointerup must not also tap. */
+  longPressFired: boolean;
+}
+
+/**
+ * Which sides of the viewport still have play field beyond them, given the
+ * current pan offset and the board's scaled pixel size. Pure so it can be
+ * unit-tested; the couple-px epsilon absorbs subpixel pan/zoom rounding so a
+ * board sitting flush at an edge reads as "at the edge", not "more content".
+ */
+export function computeEdgeOverflow(
+  pan: { x: number; y: number },
+  view: { w: number; h: number },
+  scaledBoardW: number,
+  scaledBoardH: number,
+): { left: boolean; right: boolean; top: boolean; bottom: boolean } {
+  const EPS = 2;
+  if (view.w <= 0 || view.h <= 0) return { left: false, right: false, top: false, bottom: false };
+  return {
+    left: pan.x < -EPS,
+    top: pan.y < -EPS,
+    right: pan.x + scaledBoardW > view.w + EPS,
+    bottom: pan.y + scaledBoardH > view.h + EPS,
+  };
 }
 
 export function BoardView({
@@ -83,6 +130,12 @@ export function BoardView({
   const spaceHeld = useRef(false);
   const middleDragStart = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
   const [cursor, setCursor] = useState<Position>({ x: 0, y: 0 });
+  const pressToMark = usePrefsStore((s) => s.pressToMark);
+  const hapticsOn = usePrefsStore((s) => s.haptics);
+  /** When press-to-mark last fired — used to swallow Android's synthetic contextmenu. */
+  const lastLongPressAt = useRef(0);
+  /** Live container size, tracked so the per-edge scroll cues update on resize. */
+  const [viewSize, setViewSize] = useState({ w: 0, h: 0 });
 
   function updatePan(next: { x: number; y: number }) {
     panRef.current = next;
@@ -154,6 +207,30 @@ export function BoardView({
     onAction(actionMode, pos);
   }
 
+  function cancelLongPress(p: ActivePointer) {
+    if (p.longPressTimer !== null) {
+      clearTimeout(p.longPressTimer);
+      p.longPressTimer = null;
+    }
+  }
+
+  /** Fires press-to-mark for a held pointer: marks the tile it landed on and
+   *  gives instant haptic feedback (the flag rendering is the visual cue). */
+  function fireLongPress(p: ActivePointer, startCell: Position) {
+    cancelLongPress(p);
+    if (disabled || p.longPressFired) return;
+    if (pointers.current.size !== 1) return; // a second finger means pan/zoom
+    if (Date.now() < panLockUntil.current) return;
+    if (Math.hypot(p.x - p.startX, p.y - p.startY) > LONG_PRESS_MOVE_TOLERANCE) return;
+    // The press must still be over the tile it started on.
+    const cell = cellFromClientPoint(p.x, p.y);
+    if (!cell || cell.x !== startCell.x || cell.y !== startCell.y) return;
+    p.longPressFired = true;
+    lastLongPressAt.current = Date.now();
+    if (hapticsOn) vibrate('tap');
+    onAction('flag', cell);
+  }
+
   function handlePointerDown(e: React.PointerEvent) {
     if (e.pointerType === 'mouse') {
       if (e.button === 1 || (e.button === 0 && spaceHeld.current)) {
@@ -174,13 +251,30 @@ export function BoardView({
     } catch {
       // ignore
     }
-    pointers.current.set(e.pointerId, {
+    const pointer: ActivePointer = {
       x: e.clientX,
       y: e.clientY,
       startX: e.clientX,
       startY: e.clientY,
       startTime: Date.now(),
-    });
+      longPressTimer: null,
+      longPressFired: false,
+    };
+    pointers.current.set(e.pointerId, pointer);
+
+    if (pointers.current.size >= 2) {
+      // A second finger means pan/zoom — no pending press may mark anymore.
+      for (const p of pointers.current.values()) cancelLongPress(p);
+      return;
+    }
+
+    // Press-to-mark: a deliberate hold on one tile marks it as a bomb.
+    if (pressToMark && !disabled) {
+      const startCell = cellFromClientPoint(e.clientX, e.clientY);
+      if (startCell) {
+        pointer.longPressTimer = setTimeout(() => fireLongPress(pointer, startCell), LONG_PRESS_MS);
+      }
+    }
   }
 
   function handlePointerMove(e: React.PointerEvent) {
@@ -232,6 +326,21 @@ export function BoardView({
     } else {
       p.x = e.clientX;
       p.y = e.clientY;
+      if (p.longPressTimer !== null) {
+        if (Math.hypot(p.x - p.startX, p.y - p.startY) > LONG_PRESS_MOVE_TOLERANCE) {
+          // Drifted too far — this is a drag/pan, never a deliberate press.
+          cancelLongPress(p);
+        } else if (
+          e.pointerType === 'touch' &&
+          e.pressure > FORCE_PRESS_MIN &&
+          e.pressure < FORCE_PRESS_MAX
+        ) {
+          // Analog force sensor reporting a firm press — mark immediately
+          // rather than waiting out the timer.
+          const startCell = cellFromClientPoint(p.startX, p.startY);
+          if (startCell) fireLongPress(p, startCell);
+        }
+      }
     }
   }
 
@@ -243,6 +352,8 @@ export function BoardView({
     const p = pointers.current.get(e.pointerId);
     pointers.current.delete(e.pointerId);
     if (!p) return;
+    cancelLongPress(p);
+    if (p.longPressFired) return; // the hold already marked — never also tap
     if (pointers.current.size > 0) return; // still mid multi-touch gesture
 
     const moved = Math.hypot(e.clientX - p.startX, e.clientY - p.startY);
@@ -274,6 +385,9 @@ export function BoardView({
 
   function handleContextMenu(e: React.MouseEvent) {
     e.preventDefault();
+    // Android fires a synthetic contextmenu after a native long-press; if our
+    // press-to-mark just marked this tile, a second toggle would un-mark it.
+    if (Date.now() - lastLongPressAt.current < LONG_PRESS_CONTEXTMENU_SUPPRESS_MS) return;
     const pos = cellFromClientPoint(e.clientX, e.clientY);
     if (pos && !disabled) onAction('flag', pos);
   }
@@ -330,6 +444,19 @@ export function BoardView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [board.width, board.height, tile]);
 
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    // Live container size for the per-edge scroll cues (independent of the
+    // one-shot centering observer above, which disconnects after first size).
+    const observer = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (rect) setViewSize({ w: rect.width, h: rect.height });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   function handleKeyDown(e: React.KeyboardEvent) {
     if (disabled) return;
     let next = cursor;
@@ -356,6 +483,11 @@ export function BoardView({
     actionMode === 'flag'
       ? { ring: 'var(--md-neon-pink)', wash: 'rgba(255, 60, 172, 0.10)' }
       : { ring: 'var(--md-neon-cyan)', wash: 'rgba(0, 229, 255, 0.08)' };
+
+  // Per-edge "more field beyond the viewport" cues. Recomputed on every pan/
+  // zoom/resize render; a side whose true board edge is visible shows nothing,
+  // so the real boundary reads as final rather than cut off.
+  const edges = computeEdgeOverflow(pan, viewSize, boardPixelWidth * zoom, boardPixelHeight * zoom);
 
   return (
     <div className="relative flex h-full w-full flex-col">
@@ -404,11 +536,25 @@ export function BoardView({
                   isPeek={peekPosition?.x === x && peekPosition?.y === y}
                   peekSafe={peekSafe}
                   shake={mistakePos?.x === x && mistakePos?.y === y}
+                  markMode={actionMode === 'flag'}
                 />
               ))}
             </div>
           ))}
         </div>
+        {(['left', 'right', 'top', 'bottom'] as const).map((side) => (
+          <div
+            key={side}
+            aria-hidden
+            data-edge-cue={side}
+            data-active={edges[side] || undefined}
+            className={`md-edge-cue md-edge-cue-${side}`}
+          >
+            <span className="md-edge-cue-chevron">
+              {side === 'left' ? '‹' : side === 'right' ? '›' : side === 'top' ? '‹' : '›'}
+            </span>
+          </div>
+        ))}
         {overlay}
       </div>
     </div>

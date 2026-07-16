@@ -121,13 +121,13 @@ export function BoardScreen() {
     }
     const run = raceState.runs[currentPlayer.id];
     return (
-      <div className="flex h-full flex-col gap-3 p-3">
+      <div className="flex h-full flex-col gap-2 p-2 sm:gap-3 sm:p-3">
         <div aria-live="polite" className="sr-only">
           {announce}
         </div>
-        <div className={`flex items-center justify-between gap-3 ${settings.leftHanded ? 'flex-row-reverse' : ''}`}>
-          <PlayerStatusCard player={currentPlayer} stats={run.stats} active showLives />
-          <span className="inline-flex items-center gap-1 text-sm font-semibold"><Icon name="bombMine" size={14} /> {countRemainingMines(run.board)} left</span>
+        <div className={`flex items-center justify-between gap-2 text-xs sm:gap-3 sm:text-sm ${settings.leftHanded ? 'flex-row-reverse' : ''}`}>
+          <PlayerStatusCard player={currentPlayer} stats={run.stats} active showLives compact />
+          <span className="inline-flex items-center gap-1 font-semibold"><Icon name="bombMine" size={12} /> {countRemainingMines(run.board)} left</span>
         </div>
         <div className="relative min-h-0 flex-1">
           <BoardView
@@ -222,7 +222,7 @@ export function BoardScreen() {
     }
 
     return (
-      <div className="flex h-full flex-col gap-3 p-3">
+      <div className="flex h-full flex-col gap-2 p-2 sm:gap-3 sm:p-3">
         <div aria-live="polite" className="sr-only">
           {announce}
         </div>
@@ -237,11 +237,11 @@ export function BoardScreen() {
         {/* Game-info strip: a single scrollable line so it never grows tall
             enough to push the board down or require scrolling to reach. */}
         <div
-          className={`flex shrink-0 items-center gap-3 overflow-x-auto whitespace-nowrap pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${settings.leftHanded ? 'flex-row-reverse' : ''}`}
+          className={`flex shrink-0 items-center gap-2 overflow-x-auto whitespace-nowrap pb-0.5 text-xs sm:gap-3 sm:text-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${settings.leftHanded ? 'flex-row-reverse' : ''}`}
         >
-          <span className="shrink-0 text-sm font-semibold">🏆 {coop.teamScore}</span>
-          <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold">
-            <Icon name="bombMine" size={14} /> {countRemainingMines(coop.board)} left
+          <span className="shrink-0 font-semibold">🏆 {coop.teamScore}</span>
+          <span className="inline-flex shrink-0 items-center gap-1 font-semibold">
+            <Icon name="bombMine" size={12} /> {countRemainingMines(coop.board)} left
           </span>
           {settings.coopTeamTimerSeconds > 0 && (
             <div className="w-28 shrink-0">
@@ -353,7 +353,7 @@ export function BoardScreen() {
   }
 
   return (
-    <div className="flex h-full flex-col gap-3 p-3">
+    <div className="flex h-full flex-col gap-2 p-2 sm:gap-3 sm:p-3">
       <div aria-live="polite" className="sr-only">
         {announce}
       </div>
@@ -367,19 +367,20 @@ export function BoardScreen() {
             stats={duel.stats[p.id]}
             active={p.id === active.id}
             showLives={duel.settings.duelVariant === 'survival'}
+            compact
           />
         )}
       />
       {/* Game-info strip: a single scrollable line so it never grows tall
           enough to push the board down or require scrolling to reach. */}
       <div
-        className={`flex shrink-0 items-center gap-3 overflow-x-auto whitespace-nowrap pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${settings.leftHanded ? 'flex-row-reverse' : ''}`}
+        className={`flex shrink-0 items-center gap-2 overflow-x-auto whitespace-nowrap pb-0.5 text-xs sm:gap-3 sm:text-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${settings.leftHanded ? 'flex-row-reverse' : ''}`}
       >
-        <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold">
-          <Icon name="bombMine" size={14} /> {countRemainingMines(duel.board)} left
+        <span className="inline-flex shrink-0 items-center gap-1 font-semibold">
+          <Icon name="bombMine" size={12} /> {countRemainingMines(duel.board)} left
         </span>
         {duel.settings.duelTimer.enabled && (
-          <div className="w-28 shrink-0">
+          <div className="w-24 shrink-0 sm:w-28">
             <TurnTimer
               // Reset on every action (turnActionsCount) as well as on turn change
               // (activePlayerIndex) — an actively-playing streak never times out.

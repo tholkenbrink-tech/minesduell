@@ -59,9 +59,9 @@ export function SegmentedControl<T extends string>({
       role="radiogroup"
       aria-label={ariaLabel}
       className={`rounded-[var(--md-radius-md)] border border-[var(--md-border)] bg-[var(--md-surface-2)] p-1 ${
-        grid ? 'grid gap-1' : 'inline-flex'
+        grid ? 'grid gap-1 min-w-min' : 'inline-flex'
       }`}
-      style={grid ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } : undefined}
+      style={grid ? { gridTemplateColumns: `repeat(${columns}, minmax(100px, 1fr))` } : undefined}
     >
       {options.map((opt) => (
         <button

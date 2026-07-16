@@ -3,7 +3,7 @@ import type { ActionMode } from '../../engine/types';
 import type { ControlAnchor, SeatRotation } from '../../engine/arrangement';
 import { CONTROL_ANCHORS } from '../../engine/arrangement';
 import { useRotatedSize } from '../../hooks/useRotatedSize';
-import { Icon, type IconName } from '../icons';
+import { Icon } from '../icons';
 import { Button } from '../ui';
 
 export interface ControlDockProps {
@@ -205,11 +205,11 @@ export function ControlDock({
                   backdropFilter: 'blur(6px)',
                 }}
               >
-                <ActionToggle actionMode={actionMode} setActionMode={setActionMode} vertical={vertical} />
-                {extra && <div className={vertical ? 'py-0.5' : 'px-0.5'}>{extra}</div>}
                 <Button variant="ghost" onClick={onPause} aria-label="Pause" className="!min-h-[44px] !min-w-[44px]">
                   <Icon name="pause" size={17} />
                 </Button>
+                <ActionToggle actionMode={actionMode} setActionMode={setActionMode} vertical={vertical} />
+                {extra && <div className={vertical ? 'py-0.5' : 'px-0.5'}>{extra}</div>}
                 <button
                   type="button"
                   aria-label="Move controls"
@@ -231,8 +231,9 @@ export function ControlDock({
   );
 }
 
-/** Two-state Reveal/Mark pill. Accessible names match the app's radios so
- *  existing selectors ("🔍 Reveal" / "🚩 Flag") keep working. */
+/** Single unified two-state Reveal/Mark toggle. Both icons are always visible;
+ *  clicking anywhere on the toggle flips the mode, or click a specific icon
+ *  to select that mode directly. */
 function ActionToggle({
   actionMode,
   setActionMode,
@@ -242,35 +243,68 @@ function ActionToggle({
   setActionMode: (m: ActionMode) => void;
   vertical?: boolean;
 }) {
-  const actions: { value: ActionMode; icon: IconName; emoji: string; label: string }[] = [
-    { value: 'reveal', icon: 'reveal', emoji: '🔍', label: 'Reveal' },
-    { value: 'flag', icon: 'flag', emoji: '🚩', label: 'Flag' },
-  ];
+  const toggleMode = () => setActionMode(actionMode === 'reveal' ? 'flag' : 'reveal');
+
   return (
-    <div role="radiogroup" aria-label="Action mode" className={`flex gap-1 ${vertical ? 'flex-col' : ''}`}>
-      {actions.map((a) => {
-        const on = actionMode === a.value;
-        return (
-          <button
-            key={a.value}
-            type="button"
-            role="radio"
-            aria-checked={on}
-            aria-label={`${a.emoji} ${a.label}`}
-            onClick={() => setActionMode(a.value)}
-            className="focus-ring flex items-center justify-center gap-1.5 rounded-full px-3 text-sm font-semibold transition-colors"
-            style={{
-              minHeight: 44,
-              minWidth: 44,
-              background: on ? 'linear-gradient(120deg, var(--md-neon-pink), #8b5cf6)' : 'transparent',
-              color: on ? '#fff' : 'var(--md-neon-text-muted)',
-              boxShadow: on ? '0 0 12px color-mix(in srgb, var(--md-neon-pink) 45%, transparent)' : 'none',
-            }}
-          >
-            <Icon name={a.icon} size={17} />
-          </button>
-        );
-      })}
-    </div>
+    <button
+      type="button"
+      role="radio"
+      aria-checked={actionMode === 'flag'}
+      aria-label={actionMode === 'reveal' ? '🔍 Reveal' : '🚩 Flag'}
+      onClick={toggleMode}
+      className="focus-ring flex items-center justify-center gap-1 rounded-full transition-colors"
+      style={{
+        minHeight: 44,
+        minWidth: 44,
+        padding: '4px 6px',
+        background: 'linear-gradient(120deg, var(--md-neon-pink), #8b5cf6)',
+        boxShadow: '0 0 12px color-mix(in srgb, var(--md-neon-pink) 45%, transparent)',
+      }}
+    >
+      <div className={`flex gap-1 ${vertical ? 'flex-col' : ''}`}>
+        {/* Reveal icon */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setActionMode('reveal');
+          }}
+          aria-label="Select Reveal"
+          className="flex items-center justify-center rounded transition-colors"
+          style={{
+            minHeight: 36,
+            minWidth: 36,
+            background:
+              actionMode === 'reveal'
+                ? 'rgba(255,255,255,0.2)'
+                : 'rgba(255,255,255,0.08)',
+            color: '#fff',
+          }}
+        >
+          <Icon name="reveal" size={17} />
+        </button>
+        {/* Mark/Flag icon */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setActionMode('flag');
+          }}
+          aria-label="Select Flag"
+          className="flex items-center justify-center rounded transition-colors"
+          style={{
+            minHeight: 36,
+            minWidth: 36,
+            background:
+              actionMode === 'flag'
+                ? 'rgba(255,255,255,0.2)'
+                : 'rgba(255,255,255,0.08)',
+            color: '#fff',
+          }}
+        >
+          <Icon name="flag" size={17} />
+        </button>
+      </div>
+    </button>
   );
 }

@@ -13,9 +13,9 @@ test('board tint follows the active Reveal/Mark mode', async ({ page }) => {
   const grid = page.getByRole('grid', { name: 'Minesweeper board' });
 
   await expect(grid).toHaveAttribute('data-action-mode', 'reveal');
-  await page.getByRole('radio', { name: '🚩 Flag' }).click();
+  await page.getByRole('button', { name: 'Select Flag' }).click();
   await expect(grid).toHaveAttribute('data-action-mode', 'flag');
-  await page.getByRole('radio', { name: '🔍 Reveal' }).click();
+  await page.getByRole('button', { name: 'Select Reveal' }).click();
   await expect(grid).toHaveAttribute('data-action-mode', 'reveal');
 });
 

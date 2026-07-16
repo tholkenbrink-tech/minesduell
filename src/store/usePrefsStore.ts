@@ -16,6 +16,12 @@ export interface Prefs {
   textSize: 'normal' | 'large';
   confirmDangerousReveal: boolean;
   leftHanded: boolean;
+  /**
+   * Press-and-hold a tile to mark it as a bomb without switching the Reveal/
+   * Mark toggle (iPhone-style Haptic Touch). Off = the long-press gesture is
+   * fully disabled for users who trigger it accidentally.
+   */
+  pressToMark: boolean;
   theme: ThemePreference;
   /** 'classic' = the original emoji icons; 'neon' = the alternative SVG set. */
   iconSet: 'classic' | 'neon';
@@ -38,8 +44,9 @@ const DEFAULT_PREFS: Prefs = {
   textSize: 'normal',
   confirmDangerousReveal: false,
   leftHanded: false,
+  pressToMark: true,
   theme: 'system',
-  iconSet: 'classic',
+  iconSet: 'neon',
   recentPlayerNames: [],
   onboardingSeen: false,
   controlAnchors: Array(MAX_SLOTS).fill(null),

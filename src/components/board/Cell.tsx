@@ -24,13 +24,19 @@ interface CellProps {
   peekSafe?: boolean;
   /** Briefly shake this tile — set when it's the tile of the latest mistake. */
   shake?: boolean;
+  /** Mark (flag) mode is active — every still-hidden, unflagged tile gets a
+   *  distinct border + checkbox glyph so a tap unmistakably reads as "mark". */
+  markMode?: boolean;
 }
 
-function CellImpl({ cell, size, players, orientationDeg, focused, isPeek, peekSafe, shake }: CellProps) {
+function CellImpl({ cell, size, players, orientationDeg, focused, isPeek, peekSafe, shake, markMode }: CellProps) {
   // Attribution ownership: a flag is owned by whoever placed it; a revealed
   // mine by whoever detonated it. The ring says right/wrong, the dot says who.
   const ownerId = cell.flagged ? cell.flaggedBy : cell.revealed && cell.mine ? cell.revealedBy : undefined;
   const owner = ownerId ? players.find((p) => p.id === ownerId) : undefined;
+  // Only a genuinely blank, still-clickable tile can be marked — revealed,
+  // already-flagged, and mid-peek tiles all have their own distinct look.
+  const markable = Boolean(markMode) && !cell.revealed && !cell.flagged && !isPeek;
 
   let tileClass = 'md-tile-hidden';
   let ringClass = '';
@@ -93,7 +99,7 @@ function CellImpl({ cell, size, players, orientationDeg, focused, isPeek, peekSa
       style={{ width: size, height: size }}
     >
       <div
-        className={`md-tile ${tileClass} ${ringClass} ${shake ? 'md-shake' : ''} absolute inset-[1px] flex items-center justify-center`}
+        className={`md-tile ${tileClass} ${ringClass} ${markable ? 'md-tile-markable' : ''} ${shake ? 'md-shake' : ''} absolute inset-[1px] flex items-center justify-center`}
         style={
           focused
             ? { outline: '2px solid var(--md-accent)', outlineOffset: -1, zIndex: 1 }
@@ -111,9 +117,32 @@ function CellImpl({ cell, size, players, orientationDeg, focused, isPeek, peekSa
             }}
           />
         )}
+        {markable && <span className="md-mark-checkbox" aria-hidden />}
       </div>
     </div>
   );
 }
 
-export const Cell = memo(CellImpl);
+/** Custom comparator: an already-revealed or -flagged cell's appearance never
+ *  depends on `markMode` (only a still-blank tile shows the mark affordance),
+ *  so skip its re-render on a mode toggle — only the currently-hidden,
+ *  unflagged tiles actually need to repaint when Reveal/Mark switches. */
+function cellPropsEqual(prev: Readonly<CellProps>, next: Readonly<CellProps>): boolean {
+  if (
+    prev.cell !== next.cell ||
+    prev.size !== next.size ||
+    prev.players !== next.players ||
+    prev.activePlayerId !== next.activePlayerId ||
+    prev.orientationDeg !== next.orientationDeg ||
+    prev.focused !== next.focused ||
+    prev.isPeek !== next.isPeek ||
+    prev.peekSafe !== next.peekSafe ||
+    prev.shake !== next.shake
+  ) {
+    return false;
+  }
+  if (prev.cell.revealed || prev.cell.flagged) return true;
+  return prev.markMode === next.markMode;
+}
+
+export const Cell = memo(CellImpl, cellPropsEqual);

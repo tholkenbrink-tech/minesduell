@@ -273,6 +273,7 @@ button {
   transition:
     background-color 120ms ease,
     box-shadow 120ms ease,
+    border-color 120ms ease,
     transform 80ms ease;
 }
 .md-tile-hidden {
@@ -310,6 +311,79 @@ button {
 }
 .md-tile-peek-danger {
   background: var(--md-cell-mine-bg);
+}
+
+/* --- Mark-mode tile affordance ---
+   The board-level tint alone was too subtle (weak on mobile, easy to miss on
+   desktop), so every still-clickable hidden tile also gets its own distinct
+   border plus a small unchecked-checkbox glyph while Mark mode is active —
+   a tap reads as "mark" before it ever happens, on every platform. */
+.md-tile-markable {
+  border: 2px solid var(--md-neon-pink);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--md-neon-pink) 45%, transparent);
+}
+.md-mark-checkbox {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  border: 1.5px solid var(--md-neon-pink);
+  background: color-mix(in srgb, var(--md-neon-pink) 16%, transparent);
+  box-shadow: 0 0 4px color-mix(in srgb, var(--md-neon-pink) 55%, transparent);
+}
+
+/* --- Edge scroll cues: a soft fade + chevron on any side of the viewport
+   that still has play field beyond it. A side at the board's true edge shows
+   nothing, so the real boundary reads as final rather than cut off. Pure
+   CSS-opacity toggles on pan/zoom renders — nothing here runs per-frame. --- */
+.md-edge-cue {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.md-edge-cue[data-active='true'] {
+  opacity: 1;
+}
+.md-edge-cue-left {
+  inset: 0 auto 0 0;
+  width: 26px;
+  background: linear-gradient(90deg, rgba(10, 11, 20, 0.6), transparent);
+}
+.md-edge-cue-right {
+  inset: 0 0 0 auto;
+  width: 26px;
+  background: linear-gradient(270deg, rgba(10, 11, 20, 0.6), transparent);
+}
+.md-edge-cue-top {
+  inset: 0 0 auto 0;
+  height: 26px;
+  background: linear-gradient(180deg, rgba(10, 11, 20, 0.6), transparent);
+}
+.md-edge-cue-bottom {
+  inset: auto 0 0 0;
+  height: 26px;
+  background: linear-gradient(0deg, rgba(10, 11, 20, 0.6), transparent);
+}
+.md-edge-cue-chevron {
+  font-size: 15px;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--md-text-muted);
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+  opacity: 0.85;
+}
+.md-edge-cue-top .md-edge-cue-chevron {
+  transform: rotate(90deg);
+}
+.md-edge-cue-bottom .md-edge-cue-chevron {
+  transform: rotate(90deg);
 }
 
 /* --- Face-to-face tile attribution: ring says right/wrong, dot says who --- */

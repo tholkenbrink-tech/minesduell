@@ -66,13 +66,15 @@ export function GameConfigScreen() {
 
       <Card className="flex flex-col gap-3 p-4">
         <h2 className="text-lg font-bold">Board</h2>
-        <SegmentedControl
-          ariaLabel="Difficulty preset"
-          value={settings.board.preset}
-          onChange={applyPreset}
-          options={PRESET_OPTIONS}
-          columns={5}
-        />
+        <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <SegmentedControl
+            ariaLabel="Difficulty preset"
+            value={settings.board.preset}
+            onChange={applyPreset}
+            options={PRESET_OPTIONS}
+            columns={5}
+          />
+        </div>
         <div className="grid grid-cols-3 gap-3">
           <NumberField
             id="board-width"
@@ -298,12 +300,6 @@ export function GameConfigScreen() {
           description="Ask before revealing a tile next to a flagged mine."
         />
         <Toggle checked={settings.leftHanded} onChange={(v) => updateSettings({ leftHanded: v })} label="Left-handed control placement" />
-        <Toggle
-          checked={prefs.iconSet === 'neon'}
-          onChange={(v) => prefs.setPref('iconSet', v ? 'neon' : 'classic')}
-          label="Neon icon set"
-          description="Try the alternative icon style instead of the classic emoji icons."
-        />
       </Card>
 
       <Button className="w-full" disabled={!canStart} onClick={startGame}>

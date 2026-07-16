@@ -113,6 +113,12 @@ export function PauseMenu({ onClose }: { onClose: () => void }) {
           <Toggle checked={prefs.sound} onChange={(v) => prefs.setPref('sound', v)} label="Sound" />
           <Toggle checked={prefs.haptics} onChange={(v) => prefs.setPref('haptics', v)} label="Haptics" />
           <Toggle checked={prefs.reducedMotion} onChange={(v) => prefs.setPref('reducedMotion', v)} label="Reduced motion" />
+          <Toggle
+            checked={prefs.pressToMark}
+            onChange={(v) => prefs.setPref('pressToMark', v)}
+            label="Press & hold to mark"
+            description="Hold a tile to mark it as a bomb without switching to Mark mode. Turn off if you trigger it accidentally."
+          />
         </div>
         <div className="mt-6 flex flex-col gap-2">
           <Button onClick={onClose}>Resume</Button>
