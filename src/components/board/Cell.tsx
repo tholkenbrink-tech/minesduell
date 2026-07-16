@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import type { Cell as CellType, Player } from '../../engine/types';
+import { Icon } from '../icons';
 
 const NUMBER_COLOR_VAR = ['', 'var(--md-num-1)', 'var(--md-num-2)', 'var(--md-num-3)', 'var(--md-num-4)', 'var(--md-num-5)', 'var(--md-num-6)', 'var(--md-num-7)', 'var(--md-num-8)'];
 
@@ -65,7 +66,7 @@ function CellImpl({ cell, size, players, orientationDeg, focused, isPeek, peekSa
     // Correct flag (over a real mine) rings green; a misflag rings red. A
     // committed flag carries its own steady edge instead of the glow ring.
     ringClass = cell.committed ? '' : cell.mine ? 'md-tile-ring-correct' : 'md-tile-ring-wrong';
-    content = <span aria-hidden>{cell.committed ? '💣' : '🚩'}</span>;
+    content = <Icon name={cell.committed ? 'bombMine' : 'flag'} size={16} />;
   } else if (isPeek) {
     tileClass = peekSafe ? 'md-tile-revealed' : 'md-tile-peek-danger';
     content = <span aria-hidden>{peekSafe ? '·' : '!'}</span>;

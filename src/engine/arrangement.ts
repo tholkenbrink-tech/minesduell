@@ -19,10 +19,29 @@ export type SeatRotation = 0 | 90 | 180 | 270;
  * active seat regardless of anchor. `null` (the default) means "use the natural
  * spot for the arrangement"; any explicit value is a user override.
  */
-export type ControlAnchor = 'bottom' | 'top' | 'left' | 'right' | 'center';
+export type ControlAnchor =
+  | 'bottom'
+  | 'top'
+  | 'left'
+  | 'right'
+  | 'center'
+  | 'top-left'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-right';
 
-/** The five anchors, ordered for a cross/plus-shaped picker overlay. */
-export const CONTROL_ANCHORS: ControlAnchor[] = ['top', 'left', 'center', 'right', 'bottom'];
+/** All nine anchors, ordered for a 3x3 picker overlay (corners + edges + center). */
+export const CONTROL_ANCHORS: ControlAnchor[] = [
+  'top-left',
+  'top',
+  'top-right',
+  'left',
+  'center',
+  'right',
+  'bottom-left',
+  'bottom',
+  'bottom-right',
+];
 
 /** The screen edge a seat's controls naturally dock to when not overridden. */
 const SEAT_ANCHOR: Record<SeatPosition, ControlAnchor> = {

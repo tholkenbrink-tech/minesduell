@@ -2,6 +2,8 @@ import { useRef, useState, type ReactNode } from 'react';
 import type { ActionMode } from '../../engine/types';
 import type { ControlAnchor, SeatRotation } from '../../engine/arrangement';
 import { CONTROL_ANCHORS } from '../../engine/arrangement';
+import { useRotatedSize } from '../../hooks/useRotatedSize';
+import { Icon, type IconName } from '../icons';
 import { Button } from '../ui';
 
 export interface ControlDockProps {
@@ -21,21 +23,29 @@ export interface ControlDockProps {
   extra?: ReactNode;
 }
 
-/** Grid cell placement for each drop zone (a plus/cross; corners stay empty). */
+/** Grid cell placement for each drop zone (a full 3x3: corners, edges, center). */
 const ZONE_CELL: Record<ControlAnchor, { col: number; row: number }> = {
+  'top-left': { col: 1, row: 1 },
   top: { col: 2, row: 1 },
+  'top-right': { col: 3, row: 1 },
   left: { col: 1, row: 2 },
   center: { col: 2, row: 2 },
   right: { col: 3, row: 2 },
+  'bottom-left': { col: 1, row: 3 },
   bottom: { col: 2, row: 3 },
+  'bottom-right': { col: 3, row: 3 },
 };
 
 const ZONE_ICON: Record<ControlAnchor, string> = {
+  'top-left': '↖',
   top: '↑',
+  'top-right': '↗',
   left: '←',
   center: '＋',
   right: '→',
+  'bottom-left': '↙',
   bottom: '↓',
+  'bottom-right': '↘',
 };
 
 /** Absolute placement of the cluster within the board-region container per anchor. */
@@ -55,6 +65,14 @@ function anchorWrapperStyle(anchor: ControlAnchor): React.CSSProperties {
       return { top: 0, bottom: 0, right: padXR, display: 'flex', alignItems: 'center' };
     case 'center':
       return { inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' };
+    case 'top-left':
+      return { left: padX, top: padYTop };
+    case 'top-right':
+      return { right: padXR, top: padYTop };
+    case 'bottom-left':
+      return { left: padX, bottom: padY };
+    case 'bottom-right':
+      return { right: padXR, bottom: padY };
   }
 }
 
@@ -81,6 +99,7 @@ export function ControlDock({
   const [hover, setHover] = useState<ControlAnchor | null>(null);
   const start = useRef<{ x: number; y: number } | null>(null);
   const zoneRefs = useRef<Partial<Record<ControlAnchor, HTMLDivElement>>>({});
+  const { contentRef, wrapperStyle, contentStyle } = useRotatedSize(rotation);
 
   function zoneAtPoint(x: number, y: number): ControlAnchor | null {
     for (const a of CONTROL_ANCHORS) {
@@ -173,35 +192,37 @@ export function ControlDock({
             zIndex: dragging ? 30 : undefined,
           }}
         >
-          <div style={{ transform: `rotate(${rotation}deg)` }}>
-            <div
-              className={`flex items-center gap-2 rounded-full p-1 ${vertical ? 'flex-col' : ''}`}
-              style={{
-                background: 'rgba(10,11,20,0.82)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                boxShadow: dragging
-                  ? '0 8px 28px rgba(0,0,0,0.55), 0 0 0 2px var(--md-accent)'
-                  : 'var(--md-shadow-md)',
-                backdropFilter: 'blur(6px)',
-              }}
-            >
-              <ActionToggle actionMode={actionMode} setActionMode={setActionMode} vertical={vertical} />
-              {extra && <div className={vertical ? 'py-0.5' : 'px-0.5'}>{extra}</div>}
-              <Button variant="ghost" onClick={onPause} aria-label="Pause" className="!min-h-[44px] !min-w-[44px]">
-                ⏸
-              </Button>
-              <button
-                type="button"
-                aria-label="Move controls"
-                onPointerDown={onGripDown}
-                onPointerMove={onGripMove}
-                onPointerUp={onGripUp}
-                onPointerCancel={onGripUp}
-                className="focus-ring flex items-center justify-center rounded-full text-[var(--md-neon-text-muted)]"
-                style={{ minWidth: 40, minHeight: 44, touchAction: 'none', cursor: 'grab' }}
+          <div style={wrapperStyle}>
+            <div ref={contentRef} style={contentStyle}>
+              <div
+                className={`flex items-center gap-2 rounded-full p-1 ${vertical ? 'flex-col' : ''}`}
+                style={{
+                  background: 'rgba(10,11,20,0.82)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  boxShadow: dragging
+                    ? '0 8px 28px rgba(0,0,0,0.55), 0 0 0 2px var(--md-accent)'
+                    : 'var(--md-shadow-md)',
+                  backdropFilter: 'blur(6px)',
+                }}
               >
-                ⠿
-              </button>
+                <ActionToggle actionMode={actionMode} setActionMode={setActionMode} vertical={vertical} />
+                {extra && <div className={vertical ? 'py-0.5' : 'px-0.5'}>{extra}</div>}
+                <Button variant="ghost" onClick={onPause} aria-label="Pause" className="!min-h-[44px] !min-w-[44px]">
+                  <Icon name="pause" size={17} />
+                </Button>
+                <button
+                  type="button"
+                  aria-label="Move controls"
+                  onPointerDown={onGripDown}
+                  onPointerMove={onGripMove}
+                  onPointerUp={onGripUp}
+                  onPointerCancel={onGripUp}
+                  className="focus-ring flex items-center justify-center rounded-full text-[var(--md-neon-text-muted)]"
+                  style={{ minWidth: 40, minHeight: 44, touchAction: 'none', cursor: 'grab' }}
+                >
+                  ⠿
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -221,9 +242,9 @@ function ActionToggle({
   setActionMode: (m: ActionMode) => void;
   vertical?: boolean;
 }) {
-  const actions: { value: ActionMode; icon: string; label: string }[] = [
-    { value: 'reveal', icon: '🔍', label: 'Reveal' },
-    { value: 'flag', icon: '🚩', label: 'Flag' },
+  const actions: { value: ActionMode; icon: IconName; emoji: string; label: string }[] = [
+    { value: 'reveal', icon: 'reveal', emoji: '🔍', label: 'Reveal' },
+    { value: 'flag', icon: 'flag', emoji: '🚩', label: 'Flag' },
   ];
   return (
     <div role="radiogroup" aria-label="Action mode" className={`flex gap-1 ${vertical ? 'flex-col' : ''}`}>
@@ -235,7 +256,7 @@ function ActionToggle({
             type="button"
             role="radio"
             aria-checked={on}
-            aria-label={`${a.icon} ${a.label}`}
+            aria-label={`${a.emoji} ${a.label}`}
             onClick={() => setActionMode(a.value)}
             className="focus-ring flex items-center justify-center gap-1.5 rounded-full px-3 text-sm font-semibold transition-colors"
             style={{
@@ -246,9 +267,7 @@ function ActionToggle({
               boxShadow: on ? '0 0 12px color-mix(in srgb, var(--md-neon-pink) 45%, transparent)' : 'none',
             }}
           >
-            <span aria-hidden style={{ fontSize: 17 }}>
-              {a.icon}
-            </span>
+            <Icon name={a.icon} size={17} />
           </button>
         );
       })}

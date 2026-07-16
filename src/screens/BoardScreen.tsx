@@ -10,6 +10,7 @@ import { BoardView } from '../components/board/BoardView';
 import { SeatedBoard } from '../components/board/SeatedBoard';
 import { ControlDock } from '../components/board/ControlDock';
 import { isArrangementCompatible, renderArrangement, resolveControlAnchor, seatForPlayer } from '../engine/arrangement';
+import { useIsWide } from '../hooks/useMediaQuery';
 import { PlayerStatusCard } from '../components/hud/PlayerStatusCard';
 import { PlayerRail } from '../components/hud/PlayerRail';
 import { TurnTimer } from '../components/hud/TurnTimer';
@@ -17,6 +18,7 @@ import { Button } from '../components/ui';
 import { PauseMenu } from '../components/PauseMenu';
 import { TurnTransitionOverlay } from '../components/TurnTransitionOverlay';
 import { RaceHandover } from '../components/RaceHandover';
+import { Icon } from '../components/icons';
 
 /** Position of the tile behind the latest mistake, for the brief tile shake. */
 function mistakePosFromEvents(events: GameEvent[]): Position | null {
@@ -50,6 +52,9 @@ export function BoardScreen() {
   const tileSizePref = usePrefsStore((s) => s.tileSize);
   const controlAnchors = usePrefsStore((s) => s.controlAnchors);
   const setControlAnchor = usePrefsStore((s) => s.setControlAnchor);
+  // Pinch-to-zoom + two-finger pan cover the same need on a phone, so the flat
+  // (non-seated) layout's "Center" button is only shown at tablet-and-up widths.
+  const isWide = useIsWide();
 
   const [showConfirm, setShowConfirm] = useState<{ x: number; y: number } | null>(null);
 
@@ -126,7 +131,7 @@ export function BoardScreen() {
         </div>
         <div className={`flex items-center justify-between gap-3 ${settings.leftHanded ? 'flex-row-reverse' : ''}`}>
           <PlayerStatusCard player={currentPlayer} stats={run.stats} active showLives />
-          <span className="text-sm font-semibold">💣 {countRemainingMines(run.board)} left</span>
+          <span className="inline-flex items-center gap-1 text-sm font-semibold"><Icon name="bombMine" size={14} /> {countRemainingMines(run.board)} left</span>
         </div>
         <div className="relative min-h-0 flex-1">
           <BoardView
@@ -136,6 +141,7 @@ export function BoardScreen() {
             actionMode={actionMode}
             disabled={paused}
             tileSizePref={tileSizePref}
+            showCenterButton={isWide}
             overlay={buildDock(raceState.currentIndex)}
             onAction={handleAction}
           />
@@ -254,6 +260,7 @@ export function BoardScreen() {
             actionMode={actionMode}
             disabled={paused || turnTransition.active || Boolean(peekResolved)}
             tileSizePref={tileSizePref}
+            showCenterButton={isWide}
             mistakePos={mistakePosFromEvents(lastEvents)}
             peekPosition={coop.pendingPeek && coop.pendingPeek.position.x !== -1 ? coop.pendingPeek.position : null}
             peekSafe={coop.pendingPeek?.safe}
@@ -264,7 +271,7 @@ export function BoardScreen() {
         </div>
         <div className={`flex flex-wrap items-center justify-center gap-x-4 gap-y-2 ${settings.leftHanded ? 'flex-row-reverse' : ''}`}>
           <span className="text-sm font-semibold">🏆 {coop.teamScore}</span>
-          <span className="text-sm font-semibold">💣 {countRemainingMines(coop.board)} left</span>
+          <span className="inline-flex items-center gap-1 text-sm font-semibold"><Icon name="bombMine" size={14} /> {countRemainingMines(coop.board)} left</span>
           {settings.coopTeamTimerSeconds > 0 && (
             <TurnTimer
               seconds={settings.coopTeamTimerSeconds}
@@ -369,6 +376,7 @@ export function BoardScreen() {
           actionMode={actionMode}
           disabled={paused || turnTransition.active}
           tileSizePref={tileSizePref}
+          showCenterButton={isWide}
           mistakePos={mistakePosFromEvents(lastEvents)}
           overlay={buildDock(duel.activePlayerIndex)}
           onAction={handleAction}
@@ -376,7 +384,7 @@ export function BoardScreen() {
         {turnTransition.active && <TurnTransitionOverlay player={players.find((p) => p.name === turnTransition.playerName)} />}
       </div>
       <div className={`flex flex-wrap items-center justify-center gap-x-4 gap-y-2 ${settings.leftHanded ? 'flex-row-reverse' : ''}`}>
-        <span className="text-sm font-semibold">💣 {countRemainingMines(duel.board)} left</span>
+        <span className="inline-flex items-center gap-1 text-sm font-semibold"><Icon name="bombMine" size={14} /> {countRemainingMines(duel.board)} left</span>
         {duel.settings.duelTimer.enabled && (
           <TurnTimer
             // Reset on every action (turnActionsCount) as well as on turn change

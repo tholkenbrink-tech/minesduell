@@ -78,7 +78,7 @@
   --md-radius-sm: 6px;
   --md-radius-md: 10px;
   --md-radius-lg: 16px;
-  --md-turn-ms: 550ms;
+  --md-turn-ms: 1800ms;
 
   font: 16px/1.45 system-ui, 'Segoe UI', Roboto, sans-serif;
   color: var(--md-text);
@@ -218,6 +218,23 @@ button {
 
 .md-shake {
   animation: md-shake 200ms ease-in-out;
+}
+
+/* Gentle breathing glow for the active player's (filled) seat chip, so the
+   current turn draws the eye without being distracting for its whole
+   duration. Reduced-motion overrides above neutralize it automatically. */
+@keyframes md-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 10px 0 var(--md-pulse-color, currentColor);
+  }
+  50% {
+    box-shadow: 0 0 20px 4px var(--md-pulse-color, currentColor);
+  }
+}
+
+.md-pulse {
+  animation: md-pulse 1400ms ease-in-out infinite;
 }
 
 /* Gradient brand text for the wordmark. */

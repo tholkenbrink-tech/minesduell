@@ -1,5 +1,6 @@
 import type { Player, PlayerStats } from '../../engine/types';
 import { PlayerBadge } from '../PlayerBadge';
+import { Icon } from '../icons';
 
 export function PlayerStatusCard({
   player,
@@ -26,12 +27,18 @@ export function PlayerStatusCard({
       <PlayerBadge player={player} size={compact ? 26 : 32} active={active} />
       <div className="min-w-0 text-left">
         <p className="truncate text-xs font-bold leading-tight">{player.name}</p>
-        <p className="flex gap-2 text-[11px] leading-tight text-[var(--md-text-muted)]">
-          <span>💎 {stats.minesDetected}</span>
+        <p className="flex items-center gap-2 text-[11px] leading-tight text-[var(--md-text-muted)]">
+          <span className="inline-flex items-center gap-0.5">
+            <Icon name="diamond" size={11} /> {stats.minesDetected}
+          </span>
           {stats.eliminated ? (
             <span className="text-[var(--md-danger)]">out</span>
           ) : (
-            showLives && <span>❤️ {Number.isFinite(stats.lives) ? stats.lives : '∞'}</span>
+            showLives && (
+              <span className="inline-flex items-center gap-0.5">
+                <Icon name="heart" size={11} /> {Number.isFinite(stats.lives) ? stats.lives : '∞'}
+              </span>
+            )
           )}
           {stats.currentStreak > 1 && <span>🔥{stats.currentStreak}</span>}
         </p>

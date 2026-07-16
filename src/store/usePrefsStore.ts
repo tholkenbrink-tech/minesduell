@@ -17,6 +17,8 @@ export interface Prefs {
   confirmDangerousReveal: boolean;
   leftHanded: boolean;
   theme: ThemePreference;
+  /** 'classic' = the original emoji icons; 'neon' = the alternative SVG set. */
+  iconSet: 'classic' | 'neon';
   recentPlayerNames: string[];
   onboardingSeen: boolean;
   /**
@@ -37,6 +39,7 @@ const DEFAULT_PREFS: Prefs = {
   confirmDangerousReveal: false,
   leftHanded: false,
   theme: 'system',
+  iconSet: 'classic',
   recentPlayerNames: [],
   onboardingSeen: false,
   controlAnchors: Array(MAX_SLOTS).fill(null),

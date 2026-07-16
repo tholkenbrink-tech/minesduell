@@ -40,3 +40,20 @@ test('dragging the control dock re-anchors it and persists per player slot', asy
   await expect.poll(async () => (await readAnchors(page))?.[0]).toBe('top');
   await expect.poll(async () => (await readAnchors(page))?.[1] ?? null).toBeNull();
 });
+
+test('dragging the control dock into a corner anchors it there', async ({ page }) => {
+  await startMatch(page, { mode: 'Duel', width: 8, height: 8, mines: 5 });
+  const grid = page.getByRole('grid', { name: 'Minesweeper board' });
+
+  const grip = page.getByRole('button', { name: 'Move controls' });
+  const gb = (await grip.boundingBox())!;
+  const gridBox = (await grid.boundingBox())!;
+
+  // Grab the grip and drag it to the top-left corner of the play field.
+  await page.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(gridBox.x + 24, gridBox.y + 24, { steps: 10 });
+  await page.mouse.up();
+
+  await expect.poll(async () => (await readAnchors(page))?.[0]).toBe('top-left');
+});

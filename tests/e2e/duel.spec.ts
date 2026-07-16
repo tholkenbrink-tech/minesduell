@@ -37,13 +37,16 @@ test('flag toggle is idempotent regardless of mine placement', async ({ page }) 
 
   // Target the same physical cell (by grid position) both times, regardless
   // of whether flagging it happened to end the turn. An incorrect flag ends
-  // the turn and locks input for the ~550ms turn-transition overlay by
-  // design, so wait that out before the second click.
+  // the turn and locks input for the TURN_TRANSITION_DURATION_MS overlay by
+  // design, so wait that out before the second click. Ending the turn also
+  // resets actionMode to 'reveal' for the next player (by design), so
+  // re-select Flag before the second click too.
   const cell = gridCells(page).nth(0);
   await cell.click();
   await expect(cell).toHaveAttribute('aria-label', 'flagged');
-  await page.waitForTimeout(700);
+  await page.waitForTimeout(2000);
 
+  await page.getByRole('radio', { name: '🚩 Flag' }).click();
   await cell.click();
   await expect(cell).toHaveAttribute('aria-label', 'hidden');
 });

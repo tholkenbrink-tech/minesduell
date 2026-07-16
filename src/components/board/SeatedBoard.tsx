@@ -1,10 +1,13 @@
 import type { ReactNode } from 'react';
 import type { ActionMode, Board, Player, PlayerStats, Position } from '../../engine/types';
 import type { PlayerSeat, SeatPosition, SeatRotation } from '../../engine/arrangement';
-import { seatForPlayer } from '../../engine/arrangement';
+import { SEAT_ROTATION, emptyTableSide, seatForPlayer } from '../../engine/arrangement';
 import type { FeedEvent } from '../../store/useMatchStore';
 import { BoardView } from './BoardView';
 import { TurnTimer } from '../hud/TurnTimer';
+import { PlayerBadge } from '../PlayerBadge';
+import { RotatedGroup } from '../RotatedGroup';
+import { Icon } from '../icons';
 import { useIsWide } from '../../hooks/useMediaQuery';
 
 const THEME_VAR: Record<Player['theme'], string> = {
@@ -197,18 +200,24 @@ function TableLayout({
 
   const region = (pos: SeatPosition) => {
     const player = playerAt(pos);
-    if (!player) return <div />;
+    const rotation = SEAT_ROTATION[pos];
+    if (!player) {
+      return (
+        <div className="flex items-center justify-center p-1.5">
+          <RotatedGroup rotation={rotation}>
+            <EmptySeatBadge />
+          </RotatedGroup>
+        </div>
+      );
+    }
     const active = player.id === activeId;
     return (
       <div className="flex items-center justify-center p-1.5">
-        <div
-          className="flex flex-col items-center gap-1.5"
-          style={{ transform: `rotate(${SEAT_ROTATION_DEG[pos]}deg)` }}
-        >
+        <RotatedGroup rotation={rotation} className="flex flex-col items-center gap-1.5">
           <SeatChip player={player} stats={stats[player.id]} active={active} showLives={showLives} minesLeft={minesLeft} />
           {/* Reveal/Mark controls are provided by the movable dock over the board. */}
           {active && timerSlot(pos) && <div className="w-28">{timerSlot(pos)}</div>}
-        </div>
+        </RotatedGroup>
       </div>
     );
   };
@@ -241,6 +250,7 @@ function TableLayout({
   // including the vertical labels of left/right seats — sit clear of the board
   // tiles instead of on top of them. Unoccupied sides keep a hairline margin.
   const occupied = new Set(seats.map((s) => s.position));
+  const emptySide = emptyTableSide(seats);
   return (
     <div
       className="relative h-full w-full"
@@ -266,17 +276,23 @@ function TableLayout({
             active={active}
             showLives={showLives}
             corner={CORNER_FOR_SEAT[s.position]}
-            rotation={SEAT_ROTATION_DEG[s.position]}
+            rotation={SEAT_ROTATION[s.position]}
             minesLeft={active ? minesLeft : undefined}
             timerNode={active ? timerSlot(s.position) : null}
           />
         );
       })}
+      {emptySide && (
+        <div className="pointer-events-none absolute z-10" style={CORNER_STYLE[CORNER_FOR_SEAT[emptySide]]}>
+          <RotatedGroup rotation={SEAT_ROTATION[emptySide]}>
+            <EmptySeatBadge compact />
+          </RotatedGroup>
+        </div>
+      )}
     </div>
   );
 }
 
-const SEAT_ROTATION_DEG: Record<SeatPosition, number> = { bottom: 0, right: 90, top: 180, left: 270 };
 
 /** Recommended phone corner mapping per seat (spec §3, Table on iPhone). */
 const CORNER_FOR_SEAT: Record<SeatPosition, 'bl' | 'br' | 'tr' | 'tl'> = {
@@ -318,55 +334,59 @@ function NeonHudRow({
 }) {
   const color = THEME_VAR[player.theme];
   const avatar = wide ? 32 : 24;
+  const textColor = active ? 'var(--md-accent-contrast)' : 'var(--md-neon-text)';
+  const mutedColor = active ? 'var(--md-accent-contrast)' : 'var(--md-neon-text-muted)';
   return (
     <div
       className="flex flex-col gap-2"
       style={{
         transform: flip ? 'rotate(180deg)' : undefined,
-        padding: flip ? '4px 12px 4px' : '4px 12px 4px',
+        padding: '4px 12px 4px',
         opacity: active ? 1 : 0.62,
         transition: 'opacity 180ms ease',
       }}
     >
       <div className="flex items-center justify-between gap-2">
         <div
-          className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3"
+          className={`flex items-center gap-2 rounded-full py-1 pl-1 pr-3 ${active ? 'md-pulse' : ''}`}
           style={{
-            background: 'rgba(255,255,255,0.06)',
+            background: active ? color : 'rgba(255,255,255,0.06)',
             border: `1px solid ${color}`,
-            boxShadow: active ? `0 0 14px ${color}88` : `0 0 8px ${color}44`,
+            boxShadow: active ? undefined : `0 0 8px ${color}44`,
+            transition: 'background 200ms ease',
+            ['--md-pulse-color' as string]: color,
           }}
         >
-          <span
-            aria-hidden
-            className="rounded-full"
-            style={{
-              width: avatar,
-              height: avatar,
-              background: `radial-gradient(circle at 35% 30%, ${color}, ${color}55)`,
-              boxShadow: `0 0 8px ${color}`,
-            }}
-          />
+          <PlayerBadge player={player} size={avatar} active={active} />
           <div className="leading-tight">
-            <div className="md-display font-bold text-[var(--md-neon-text)]" style={{ fontSize: wide ? 14 : 11 }}>
+            <div className="md-display font-bold" style={{ fontSize: wide ? 14 : 11, color: textColor }}>
               {player.name}
             </div>
             <div
-              className="md-display flex gap-2 font-semibold text-[var(--md-neon-text-muted)]"
-              style={{ fontSize: wide ? 11.5 : 9.5 }}
+              className="md-display flex gap-2 font-semibold"
+              style={{ fontSize: wide ? 11.5 : 9.5, color: mutedColor }}
             >
-              <span>💎 {stats.minesDetected}</span>
+              <span className="inline-flex items-center gap-0.5">
+                <Icon name="diamond" size={wide ? 12 : 10} /> {stats.minesDetected}
+              </span>
               {stats.eliminated ? (
                 <span className="text-[var(--md-neon-red)]">out</span>
               ) : (
-                showLives && <span>❤️ {Number.isFinite(stats.lives) ? stats.lives : '∞'}</span>
+                showLives && (
+                  <span className="inline-flex items-center gap-0.5">
+                    <Icon name="heart" size={wide ? 12 : 10} /> {Number.isFinite(stats.lives) ? stats.lives : '∞'}
+                  </span>
+                )
               )}
               {stats.currentStreak > 1 && <span>🔥 {stats.currentStreak}</span>}
             </div>
           </div>
         </div>
-        <span className="md-display font-bold text-[var(--md-neon-text)]" style={{ fontSize: wide ? 14 : 11 }}>
-          💣 {minesLeft}
+        <span
+          className="md-display inline-flex items-center gap-1 font-bold text-[var(--md-neon-text)]"
+          style={{ fontSize: wide ? 14 : 11 }}
+        >
+          <Icon name="bombMine" size={wide ? 14 : 12} /> {minesLeft}
           {wide ? ' left' : ''}
         </span>
       </div>
@@ -390,34 +410,43 @@ function SeatChip({
   minesLeft: number;
 }) {
   const color = THEME_VAR[player.theme];
+  const textColor = active ? 'var(--md-accent-contrast)' : 'var(--md-neon-text)';
+  const mutedColor = active ? 'var(--md-accent-contrast)' : 'var(--md-neon-text-muted)';
   return (
     <div
-      className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3"
+      className={`flex items-center gap-2 rounded-full py-1 pl-1 pr-3 ${active ? 'md-pulse' : ''}`}
       style={{
-        background: 'rgba(255,255,255,0.06)',
+        background: active ? color : 'rgba(255,255,255,0.06)',
         border: `1px solid ${color}`,
-        boxShadow: active ? `0 0 14px ${color}88` : `0 0 8px ${color}44`,
+        boxShadow: active ? undefined : `0 0 8px ${color}44`,
         opacity: active ? 1 : 0.62,
-        transition: 'opacity 180ms ease',
+        transition: 'opacity 180ms ease, background 200ms ease',
+        ['--md-pulse-color' as string]: color,
       }}
     >
-      <span
-        aria-hidden
-        className="rounded-full"
-        style={{ width: 26, height: 26, background: `radial-gradient(circle at 35% 30%, ${color}, ${color}55)`, boxShadow: `0 0 8px ${color}` }}
-      />
+      <PlayerBadge player={player} size={26} active={active} />
       <div className="leading-tight">
-        <div className="md-display font-bold text-[var(--md-neon-text)]" style={{ fontSize: 12 }}>
+        <div className="md-display font-bold" style={{ fontSize: 12, color: textColor }}>
           {player.name}
         </div>
-        <div className="md-display flex gap-2 font-semibold text-[var(--md-neon-text-muted)]" style={{ fontSize: 10 }}>
-          <span>💎 {stats.minesDetected}</span>
+        <div className="md-display flex gap-2 font-semibold" style={{ fontSize: 10, color: mutedColor }}>
+          <span className="inline-flex items-center gap-0.5">
+            <Icon name="diamond" size={10} /> {stats.minesDetected}
+          </span>
           {stats.eliminated ? (
             <span className="text-[var(--md-neon-red)]">out</span>
           ) : (
-            showLives && <span>❤️ {Number.isFinite(stats.lives) ? stats.lives : '∞'}</span>
+            showLives && (
+              <span className="inline-flex items-center gap-0.5">
+                <Icon name="heart" size={10} /> {Number.isFinite(stats.lives) ? stats.lives : '∞'}
+              </span>
+            )
           )}
-          {active && <span>💣 {minesLeft}</span>}
+          {active && (
+            <span className="inline-flex items-center gap-0.5">
+              <Icon name="bombMine" size={10} /> {minesLeft}
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -442,45 +471,84 @@ function CornerIndicator({
   active: boolean;
   showLives: boolean;
   corner: 'bl' | 'br' | 'tr' | 'tl';
-  rotation: number;
+  rotation: SeatRotation;
   minesLeft?: number;
   timerNode?: ReactNode;
 }) {
   const color = THEME_VAR[player.theme];
+  const textColor = active ? 'var(--md-accent-contrast)' : 'var(--md-neon-text)';
+  const mutedColor = active ? 'var(--md-accent-contrast)' : 'var(--md-neon-text-muted)';
+  return (
+    <div className="pointer-events-none absolute z-10" style={CORNER_STYLE[corner]}>
+      <RotatedGroup rotation={rotation} className="flex flex-col items-start gap-1">
+        <div
+          className={`flex items-center gap-1 rounded-full py-0.5 pl-0.5 pr-2 ${active ? 'md-pulse' : ''}`}
+          style={{
+            background: active ? color : 'rgba(10,11,20,0.82)',
+            border: `1px solid ${color}`,
+            boxShadow: active ? undefined : `0 0 6px ${color}55`,
+            opacity: active ? 1 : 0.66,
+            ['--md-pulse-color' as string]: color,
+          }}
+        >
+          <PlayerBadge player={player} size={18} active={active} />
+          <span className="md-display font-bold" style={{ fontSize: 10, color: textColor }}>
+            {player.name}
+          </span>
+          <span className="md-display inline-flex items-center gap-1 font-semibold" style={{ fontSize: 10, color: mutedColor }}>
+            <span className="inline-flex items-center gap-0.5">
+              <Icon name="diamond" size={9} />
+              {stats.minesDetected}
+            </span>
+            {showLives && !stats.eliminated && Number.isFinite(stats.lives) && (
+              <span className="inline-flex items-center gap-0.5">
+                <Icon name="heart" size={9} />
+                {stats.lives}
+              </span>
+            )}
+            {stats.eliminated && <span>· out</span>}
+            {minesLeft != null && (
+              <span className="inline-flex items-center gap-0.5">
+                <Icon name="bombMine" size={9} />
+                {minesLeft}
+              </span>
+            )}
+          </span>
+        </div>
+        {timerNode && <div className="w-24">{timerNode}</div>}
+      </RotatedGroup>
+    </div>
+  );
+}
+
+/** Placeholder for an unoccupied Table seat, so an empty side reads as
+ *  intentional rather than a rendering gap. `compact` drops the text label
+ *  for the phone corner gutter, which is too narrow for a full pill. */
+function EmptySeatBadge({ compact = false }: { compact?: boolean }) {
+  if (compact) {
+    return (
+      <span
+        aria-hidden
+        className="block rounded-full"
+        style={{ width: 18, height: 18, border: '1.5px dashed rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.04)' }}
+      />
+    );
+  }
   return (
     <div
-      className="pointer-events-none absolute z-10 flex flex-col gap-1"
-      style={{
-        ...CORNER_STYLE[corner],
-        transform: `rotate(${rotation}deg)`,
-        alignItems: 'flex-start',
-      }}
+      className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3"
+      style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.26)' }}
     >
-      <div
-        className="flex items-center gap-1 rounded-full py-0.5 pl-0.5 pr-2"
-        style={{
-          background: 'rgba(10,11,20,0.82)',
-          border: `1px solid ${color}`,
-          boxShadow: active ? `0 0 12px ${color}aa` : `0 0 6px ${color}55`,
-          opacity: active ? 1 : 0.66,
-        }}
+      <span
+        aria-hidden
+        className="flex items-center justify-center rounded-full text-[var(--md-neon-text-muted)]"
+        style={{ width: 26, height: 26, border: '1.5px dashed rgba(255,255,255,0.34)', fontSize: 13 }}
       >
-        <span
-          aria-hidden
-          className="rounded-full"
-          style={{ width: 18, height: 18, background: `radial-gradient(circle at 35% 30%, ${color}, ${color}55)` }}
-        />
-        <span className="md-display font-bold text-[var(--md-neon-text)]" style={{ fontSize: 10 }}>
-          {player.name}
-        </span>
-        <span className="md-display font-semibold text-[var(--md-neon-text-muted)]" style={{ fontSize: 10 }}>
-          💎{stats.minesDetected}
-          {showLives && !stats.eliminated && Number.isFinite(stats.lives) ? ` ❤️${stats.lives}` : ''}
-          {stats.eliminated ? ' · out' : ''}
-          {minesLeft != null ? ` 💣${minesLeft}` : ''}
-        </span>
-      </div>
-      {timerNode && <div className="w-24">{timerNode}</div>}
+        +
+      </span>
+      <span className="md-display font-semibold text-[var(--md-neon-text-muted)]" style={{ fontSize: 11 }}>
+        Empty seat
+      </span>
     </div>
   );
 }

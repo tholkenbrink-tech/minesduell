@@ -12,6 +12,17 @@ const PAN_MOVE_THRESHOLD = 10; // px before a touch is treated as a pan, not a t
 const TAP_MAX_DURATION_MS = 500;
 const POST_PAN_LOCK_MS = 220;
 
+/** Board zoom is clamped to 70%-130% of the default (100%) size. */
+const ZOOM_MIN = 0.7;
+const ZOOM_MAX = 1.3;
+/** Exponential factor applied per wheel-delta pixel; tuned so one mouse-wheel
+ *  notch (~deltaY 100) steps roughly 10-15%, and trackpad scrolling zooms smoothly. */
+const WHEEL_ZOOM_SENSITIVITY = 0.0015;
+
+function clampZoom(z: number) {
+  return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+}
+
 export interface BoardViewProps {
   board: Board;
   players: Player[];
@@ -64,19 +75,38 @@ export function BoardView({
   const tile = TILE_SIZE[tileSizePref];
   const containerRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  // Gesture math (pinch/wheel) reads these instead of the `pan`/`zoom` state
+  // closures: several fast events can be dispatched/batched before a
+  // re-render commits, and reading state would make each one compute from
+  // the same stale pre-batch value instead of compounding correctly.
+  const panRef = useRef(pan);
+  const zoomRef = useRef(zoom);
   const pointers = useRef<Map<number, ActivePointer>>(new Map());
   const panLockUntil = useRef(0);
   const spaceHeld = useRef(false);
   const middleDragStart = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
   const [cursor, setCursor] = useState<Position>({ x: 0, y: 0 });
 
+  function updatePan(next: { x: number; y: number }) {
+    panRef.current = next;
+    setPan(next);
+  }
+  function updateZoom(next: number) {
+    zoomRef.current = next;
+    setZoom(next);
+  }
+
   const boardPixelWidth = board.width * tile;
   const boardPixelHeight = board.height * tile;
 
   const clampPan = useCallback(
-    (next: { x: number; y: number }) => {
+    (next: { x: number; y: number }, zoomOverride?: number) => {
       const el = containerRef.current;
       if (!el) return next;
+      const z = zoomOverride ?? zoomRef.current;
+      const scaledWidth = boardPixelWidth * z;
+      const scaledHeight = boardPixelHeight * z;
       const clampAxis = (value: number, viewSize: number, boardSize: number) => {
         if (boardSize <= viewSize) {
           // Board is smaller than the viewport: it can sit anywhere from
@@ -89,8 +119,8 @@ export function BoardView({
         return Math.max(min, Math.min(0, value));
       };
       return {
-        x: clampAxis(next.x, el.clientWidth, boardPixelWidth),
-        y: clampAxis(next.y, el.clientHeight, boardPixelHeight),
+        x: clampAxis(next.x, el.clientWidth, scaledWidth),
+        y: clampAxis(next.y, el.clientHeight, scaledHeight),
       };
     },
     [boardPixelWidth, boardPixelHeight],
@@ -115,10 +145,10 @@ export function BoardView({
     const el = containerRef.current;
     if (!el) return null;
     const rect = el.getBoundingClientRect();
-    const localX = clientX - rect.left - pan.x;
-    const localY = clientY - rect.top - pan.y;
-    const x = Math.floor(localX / tile);
-    const y = Math.floor(localY / tile);
+    const localX = clientX - rect.left - panRef.current.x;
+    const localY = clientY - rect.top - panRef.current.y;
+    const x = Math.floor(localX / (tile * zoomRef.current));
+    const y = Math.floor(localY / (tile * zoomRef.current));
     if (x < 0 || y < 0 || x >= board.width || y >= board.height) return null;
     return { x, y };
   }
@@ -131,7 +161,7 @@ export function BoardView({
   function handlePointerDown(e: React.PointerEvent) {
     if (e.pointerType === 'mouse') {
       if (e.button === 1 || (e.button === 0 && spaceHeld.current)) {
-        middleDragStart.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y };
+        middleDragStart.current = { x: e.clientX, y: e.clientY, panX: panRef.current.x, panY: panRef.current.y };
         return;
       }
       if (e.button !== 0) return; // right click handled by contextmenu
@@ -139,7 +169,15 @@ export function BoardView({
       if (pos) performAction(pos);
       return;
     }
-    (e.target as Element).setPointerCapture?.(e.pointerId);
+    // Best-effort: some browsers throw (e.g. NotFoundError) if the pointer
+    // isn't recognized as active at capture time. Losing capture only means
+    // the pointer could stop firing events if it strays off-element, which
+    // is a minor UX nit — it must never stop this pointer from being tracked.
+    try {
+      (e.target as Element).setPointerCapture?.(e.pointerId);
+    } catch {
+      // ignore
+    }
     pointers.current.set(e.pointerId, {
       x: e.clientX,
       y: e.clientY,
@@ -153,22 +191,46 @@ export function BoardView({
     if (middleDragStart.current) {
       const dx = e.clientX - middleDragStart.current.x;
       const dy = e.clientY - middleDragStart.current.y;
-      setPan(clampPan({ x: middleDragStart.current.panX + dx, y: middleDragStart.current.panY + dy }));
+      updatePan(clampPan({ x: middleDragStart.current.panX + dx, y: middleDragStart.current.panY + dy }));
       return;
     }
     const p = pointers.current.get(e.pointerId);
     if (!p) return;
 
     if (pointers.current.size >= 2) {
-      const ids = Array.from(pointers.current.keys());
-      const prevCentroid = averageOf(ids.map((id) => pointers.current.get(id)!));
+      // Pinch-to-zoom + two-finger pan, combined: the board point under the
+      // pinch centroid stays fixed under the fingers as both the centroid
+      // moves (pan) and the finger spacing changes (zoom).
+      const [idA, idB] = Array.from(pointers.current.keys());
+      const prevA = pointers.current.get(idA)!;
+      const prevB = pointers.current.get(idB)!;
+      const prevCentroid = averageOf([prevA, prevB]);
+      const prevDist = Math.hypot(prevA.x - prevB.x, prevA.y - prevB.y);
+
       p.x = e.clientX;
       p.y = e.clientY;
-      const nextCentroid = averageOf(ids.map((id) => pointers.current.get(id)!));
-      const dx = nextCentroid.x - prevCentroid.x;
-      const dy = nextCentroid.y - prevCentroid.y;
-      if (dx || dy) {
-        setPan((prev) => clampPan({ x: prev.x + dx, y: prev.y + dy }));
+
+      const nextA = pointers.current.get(idA)!;
+      const nextB = pointers.current.get(idB)!;
+      const nextCentroid = averageOf([nextA, nextB]);
+      const nextDist = Math.hypot(nextA.x - nextB.x, nextA.y - nextB.y);
+
+      const el = containerRef.current;
+      const rect = el?.getBoundingClientRect();
+      const curZoom = zoomRef.current;
+      const scaleRatio = prevDist > 0 ? nextDist / prevDist : 1;
+      const newZoom = clampZoom(curZoom * scaleRatio);
+      const centroidMoved = prevCentroid.x !== nextCentroid.x || prevCentroid.y !== nextCentroid.y;
+
+      if (rect && (centroidMoved || newZoom !== curZoom)) {
+        const bx = (prevCentroid.x - rect.left - panRef.current.x) / curZoom;
+        const by = (prevCentroid.y - rect.top - panRef.current.y) / curZoom;
+        const nextPan = {
+          x: nextCentroid.x - rect.left - bx * newZoom,
+          y: nextCentroid.y - rect.top - by * newZoom,
+        };
+        updateZoom(newZoom);
+        updatePan(clampPan(nextPan, newZoom));
         panLockUntil.current = Date.now() + POST_PAN_LOCK_MS;
       }
     } else {
@@ -197,8 +259,21 @@ export function BoardView({
   }
 
   function handleWheel(e: React.WheelEvent) {
+    // Always prevent default so neither a mouse wheel nor a trackpad's
+    // synthesized ctrl+wheel pinch ever triggers the browser's own page zoom.
     e.preventDefault();
-    setPan((prev) => clampPan({ x: prev.x - e.deltaX, y: prev.y - e.deltaY }));
+    const el = containerRef.current;
+    const rect = el?.getBoundingClientRect();
+    if (!rect) return;
+    const curZoom = zoomRef.current;
+    const newZoom = clampZoom(curZoom * Math.exp(-e.deltaY * WHEEL_ZOOM_SENSITIVITY));
+    if (newZoom === curZoom) return;
+    const fx = e.clientX - rect.left;
+    const fy = e.clientY - rect.top;
+    const bx = (fx - panRef.current.x) / curZoom;
+    const by = (fy - panRef.current.y) / curZoom;
+    updateZoom(newZoom);
+    updatePan(clampPan({ x: fx - bx * newZoom, y: fy - by * newZoom }, newZoom));
   }
 
   function handleContextMenu(e: React.MouseEvent) {
@@ -207,14 +282,21 @@ export function BoardView({
     if (pos && !disabled) onAction('flag', pos);
   }
 
-  function centerBoard() {
+  /** `zoomOverride` lets the new-board reset effects center using zoom=1
+   *  even before the `setZoom(1)` they fire alongside has committed; the
+   *  visible "Center" button omits it to recenter at whatever zoom is current. */
+  function centerBoard(zoomOverride?: number) {
     const el = containerRef.current;
     if (!el) return;
-    setPan(
-      clampPan({
-        x: (el.clientWidth - boardPixelWidth) / 2,
-        y: (el.clientHeight - boardPixelHeight) / 2,
-      }),
+    const z = zoomOverride ?? zoomRef.current;
+    updatePan(
+      clampPan(
+        {
+          x: (el.clientWidth - boardPixelWidth * z) / 2,
+          y: (el.clientHeight - boardPixelHeight * z) / 2,
+        },
+        z,
+      ),
     );
   }
 
@@ -225,9 +307,10 @@ export function BoardView({
     // clientWidth/Height here forces a layout pass, so this succeeds in the
     // common case and the board never visibly "pops" into its centered spot.
     centeredRef.current = false;
+    updateZoom(1);
     const el = containerRef.current;
     if (el && el.clientWidth > 0 && el.clientHeight > 0) {
-      centerBoard();
+      centerBoard(1);
       centeredRef.current = true;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -245,7 +328,7 @@ export function BoardView({
       const { width, height } = entry.contentRect;
       if (width === 0 || height === 0) return;
       centeredRef.current = true;
-      centerBoard();
+      centerBoard(1);
     });
     observer.observe(el);
     return () => observer.disconnect();
@@ -308,7 +391,8 @@ export function BoardView({
           style={{
             width: boardPixelWidth,
             height: boardPixelHeight,
-            transform: `translate3d(${pan.x}px, ${pan.y}px, 0)`,
+            transformOrigin: '0 0',
+            transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
           }}
         >
           {rows.map((row, y) => (
@@ -336,7 +420,7 @@ export function BoardView({
         <div className="flex shrink-0 justify-center pt-2">
           <button
             type="button"
-            onClick={centerBoard}
+            onClick={() => centerBoard()}
             className="focus-ring rounded-full border border-[var(--md-border)] bg-[var(--md-surface)] px-4 py-1.5 text-xs font-semibold text-[var(--md-text)] shadow"
             aria-label="Center board"
           >

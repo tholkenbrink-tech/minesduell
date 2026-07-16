@@ -494,6 +494,10 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
   },
 }));
 
+/** How long the "who's playing now" turn-switch overlay stays on screen —
+ *  long enough for everyone at the table to register whose turn it is. */
+export const TURN_TRANSITION_DURATION_MS = 1800;
+
 function triggerTurnTransition(
   set: (partial: Partial<MatchStore>) => void,
   get: () => MatchStore,
@@ -502,7 +506,7 @@ function triggerTurnTransition(
   set({ turnTransition: { active: true, playerName } });
   setTimeout(() => {
     set({ turnTransition: { active: false, playerName: '' } });
-  }, 550);
+  }, TURN_TRANSITION_DURATION_MS);
   void get;
 }
 

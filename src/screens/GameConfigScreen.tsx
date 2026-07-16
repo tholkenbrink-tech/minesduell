@@ -71,7 +71,7 @@ export function GameConfigScreen() {
           value={settings.board.preset}
           onChange={applyPreset}
           options={PRESET_OPTIONS}
-          columns={3}
+          columns={5}
         />
         <div className="grid grid-cols-3 gap-3">
           <NumberField
@@ -144,6 +144,7 @@ export function GameConfigScreen() {
               { value: 'classic', label: 'Classic' },
               { value: 'survival', label: 'Survival' },
             ]}
+            columns={3}
           />
           <div className="mt-3 flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1 text-sm">
@@ -297,6 +298,12 @@ export function GameConfigScreen() {
           description="Ask before revealing a tile next to a flagged mine."
         />
         <Toggle checked={settings.leftHanded} onChange={(v) => updateSettings({ leftHanded: v })} label="Left-handed control placement" />
+        <Toggle
+          checked={prefs.iconSet === 'neon'}
+          onChange={(v) => prefs.setPref('iconSet', v ? 'neon' : 'classic')}
+          label="Neon icon set"
+          description="Try the alternative icon style instead of the classic emoji icons."
+        />
       </Card>
 
       <Button className="w-full" disabled={!canStart} onClick={startGame}>
