@@ -126,6 +126,16 @@ export function BoardView({
   const panRef = useRef(pan);
   const zoomRef = useRef(zoom);
   const pointers = useRef<Map<number, ActivePointer>>(new Map());
+  /** Pinch/pan gesture state: the last committed (both-fingers-fresh) centroid
+   *  + distance, and which of the two tracked pointer ids have reported a
+   *  fresh position since that commit. Recomputing on every individual
+   *  pointer event (instead of waiting for both fingers to report) mixes one
+   *  fresh position with one stale one, which reads as a momentary pinch —
+   *  and an unwanted zoom blip — even during a perfectly symmetric
+   *  two-finger pan, since the two fingers' moves always arrive as separate
+   *  events rather than atomically together. */
+  const pinchRef = useRef<{ centroid: { x: number; y: number }; dist: number } | null>(null);
+  const pinchDirty = useRef<Set<number>>(new Set());
   const panLockUntil = useRef(0);
   const spaceHeld = useRef(false);
   const middleDragStart = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
@@ -265,6 +275,13 @@ export function BoardView({
     if (pointers.current.size >= 2) {
       // A second finger means pan/zoom — no pending press may mark anymore.
       for (const p of pointers.current.values()) cancelLongPress(p);
+      // (Re)establish the pinch reference from the two tracked pointers
+      // whenever a finger joins — harmless to redo if a 3rd finger lands.
+      const [idA, idB] = Array.from(pointers.current.keys());
+      const a = pointers.current.get(idA)!;
+      const b = pointers.current.get(idB)!;
+      pinchRef.current = { centroid: averageOf([a, b]), dist: Math.hypot(a.x - b.x, a.y - b.y) };
+      pinchDirty.current.clear();
       return;
     }
 
@@ -292,18 +309,23 @@ export function BoardView({
       // pinch centroid stays fixed under the fingers as both the centroid
       // moves (pan) and the finger spacing changes (zoom).
       const [idA, idB] = Array.from(pointers.current.keys());
-      const prevA = pointers.current.get(idA)!;
-      const prevB = pointers.current.get(idB)!;
-      const prevCentroid = averageOf([prevA, prevB]);
-      const prevDist = Math.hypot(prevA.x - prevB.x, prevA.y - prevB.y);
-
       p.x = e.clientX;
       p.y = e.clientY;
+
+      // Only recompute once BOTH tracked fingers have reported a fresh
+      // position since the last commit (see pinchRef/pinchDirty comment
+      // above) — a lone finger's update is queued, not acted on yet.
+      if (e.pointerId === idA || e.pointerId === idB) pinchDirty.current.add(e.pointerId);
+      if (pinchDirty.current.size < 2 || !pinchRef.current) return;
+      pinchDirty.current.clear();
 
       const nextA = pointers.current.get(idA)!;
       const nextB = pointers.current.get(idB)!;
       const nextCentroid = averageOf([nextA, nextB]);
       const nextDist = Math.hypot(nextA.x - nextB.x, nextA.y - nextB.y);
+
+      const { centroid: prevCentroid, dist: prevDist } = pinchRef.current;
+      pinchRef.current = { centroid: nextCentroid, dist: nextDist };
 
       const el = containerRef.current;
       const rect = el?.getBoundingClientRect();
