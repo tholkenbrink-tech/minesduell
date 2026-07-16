@@ -471,6 +471,10 @@ export function BoardView({
     if (!el) return;
     // Live container size for the per-edge scroll cues (independent of the
     // one-shot centering observer above, which disconnects after first size).
+    // Seed synchronously — some embedded/throttled environments deliver the
+    // observer's initial callback late or not at all, and the cues must not
+    // depend on it for their first correct render.
+    setViewSize({ w: el.clientWidth, h: el.clientHeight });
     const observer = new ResizeObserver((entries) => {
       const rect = entries[0]?.contentRect;
       if (rect) setViewSize({ w: rect.width, h: rect.height });

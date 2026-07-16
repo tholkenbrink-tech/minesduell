@@ -88,11 +88,12 @@ test('cues update live per edge while panning to a corner', async ({ page }) => 
   await expect(cue(page, 'bottom')).not.toHaveAttribute('data-active', 'true');
 });
 
-test('zooming in near a corner keeps only the inward cues active', async ({ page }) => {
-  await startMatch(page, { mode: 'Duel', width: 12, height: 12, mines: 10 });
+test('at max zoom-in, each corner clears exactly its two outward cues', async ({ page }) => {
+  await startMatch(page, { mode: 'Duel', width: 30, height: 40, mines: 120 });
 
-  // Zoom to max via wheel at the board's top-left visible corner, then pan
-  // hard to the top-left corner of the field.
+  // Zoom to the 1.3x clamp via wheel, then visit all four corners of the
+  // field. At every corner the two edges the view is flush against must show
+  // no cue (the boundary is final) while the two inward sides still hint.
   await page.evaluate(() => {
     const grid = document.querySelector('[role="grid"]') as HTMLElement;
     const rect = grid.getBoundingClientRect();
@@ -108,9 +109,19 @@ test('zooming in near a corner keeps only the inward cues active', async ({ page
       );
     }
   });
-  await panToLimit(page, 400, 400);
 
-  const states = await activeStates(page);
-  expect(states.left).toBe(false);
-  expect(states.top).toBe(false);
+  const corners: { pan: [number, number]; atEdge: ['left' | 'right', 'top' | 'bottom'] }[] = [
+    { pan: [600, 600], atEdge: ['left', 'top'] },
+    { pan: [-600, 600], atEdge: ['right', 'top'] },
+    { pan: [-600, -600], atEdge: ['right', 'bottom'] },
+    { pan: [600, -600], atEdge: ['left', 'bottom'] },
+  ];
+  for (const corner of corners) {
+    await panToLimit(page, corner.pan[0], corner.pan[1]);
+    const states = await activeStates(page);
+    for (const side of ['left', 'right', 'top', 'bottom'] as const) {
+      const expected = !corner.atEdge.includes(side as never);
+      expect(states[side], `${side} cue at corner flush with ${corner.atEdge.join('/')}`).toBe(expected);
+    }
+  }
 });
