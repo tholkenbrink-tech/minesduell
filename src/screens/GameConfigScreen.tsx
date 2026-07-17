@@ -285,12 +285,7 @@ export function GameConfigScreen() {
               </select>
             </label>
           </div>
-          <Toggle
-            checked={settings.raceFlagCostsLife}
-            onChange={(v) => updateSettings({ raceFlagCostsLife: v })}
-            label="Incorrect flags cost a life"
-            description="Harder mode. Off by default."
-          />
+          <p className="text-xs text-[var(--md-text-muted)]">Wrongly flagging a safe tile costs a life, same as revealing a mine.</p>
         </Card>
       )}
 

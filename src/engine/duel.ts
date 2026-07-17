@@ -77,17 +77,26 @@ function posKey(p: Position): string {
   return `${p.x},${p.y}`;
 }
 
+/** Clean clicks: tiles a player clicked to reveal, excluding mistaken (mine) reveals. */
+function cleanClicks(stats: PlayerStats): number {
+  return stats.revealActions - stats.minesTriggered;
+}
+
+/**
+ * Ranks players for both normal and tied outcomes with a single ordered
+ * comparator: defused bombs, then lives, then clean (mistake-free) clicks.
+ */
+export function compareDuelPlayers(state: DuelState, a: Player, b: Player): number {
+  const sa = state.stats[a.id];
+  const sb = state.stats[b.id];
+  if (sb.minesDetected !== sa.minesDetected) return sb.minesDetected - sa.minesDetected;
+  if (sb.lives !== sa.lives) return sb.lives - sa.lives;
+  return cleanClicks(sb) - cleanClicks(sa);
+}
+
 /** Determines the winner among remaining (non-eliminated) players by score tie-break. */
 function rankPlayers(state: DuelState): Player[] {
-  return [...state.players].sort((a, b) => {
-    const sa = state.stats[a.id];
-    const sb = state.stats[b.id];
-    if (sb.minesDetected !== sa.minesDetected) return sb.minesDetected - sa.minesDetected;
-    if (sa.incorrectFlags !== sb.incorrectFlags) return sa.incorrectFlags - sb.incorrectFlags;
-    if (sa.minesTriggered !== sb.minesTriggered) return sa.minesTriggered - sb.minesTriggered;
-    if (sb.safeCellsRevealed !== sa.safeCellsRevealed) return sb.safeCellsRevealed - sa.safeCellsRevealed;
-    return 0;
-  });
+  return [...state.players].sort((a, b) => compareDuelPlayers(state, a, b));
 }
 
 function finishGame(state: DuelState, events: GameEvent[]): void {
@@ -154,6 +163,7 @@ export function applyDuelReveal(state: DuelState, pos: Position): DuelActionResu
   if (result.events.length === 0) return { state, events };
   events.push(...result.events);
   state.turnActionsCount += 1;
+  stats.revealActions += 1;
 
   let turnEnds = false;
   const mistakesMatter = duelMistakesMatter(state.settings);

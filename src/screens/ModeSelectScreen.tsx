@@ -41,7 +41,7 @@ const MODES: ModeInfo[] = [
     title: 'Co-op Survival',
     tagline: 'Team up, share the risk',
     objective: 'Two to four players solve one board together while protecting shared lives.',
-    turns: 'Each player keeps going for up to 5 moves, then hands the device over — or immediately if they make a mistake.',
+    turns: 'Each player keeps going until they mark 5 bombs, then hands the device over — or immediately if they make a mistake.',
     ending: 'Team wins by clearing the board or hitting the score target; loses if everyone is eliminated.',
     length: '6–12 minutes',
     accent: 'var(--md-player-violet)',

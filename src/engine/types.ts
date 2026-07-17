@@ -130,7 +130,6 @@ export interface GameSettings {
   raceLives: number;
   raceScoring: RaceScoring;
   raceCompletionRule: RaceCompletionRule;
-  raceFlagCostsLife: boolean;
   raceMaxSeconds: number; // 0 = unlimited
 
   // Co-op specific
