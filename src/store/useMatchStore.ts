@@ -127,6 +127,9 @@ interface MatchStore {
 
   goToModeSelect: () => void;
   selectMode: (mode: GameMode) => void;
+  /** Back from Game settings to Who's playing?, keeping the chosen mode and
+   *  already-entered players (they're already saved in the store by then). */
+  goToPlayerSetup: () => void;
   setPlayers: (players: Player[]) => void;
   updateSettings: (patch: Partial<GameSettings>) => void;
   /**
@@ -322,6 +325,8 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
 
   selectMode: (mode) =>
     set({ mode, settings: defaultSettingsForMode(mode), screen: 'player-setup' }),
+
+  goToPlayerSetup: () => set({ screen: 'player-setup' }),
 
   setPlayers: (players) => set({ players }),
 

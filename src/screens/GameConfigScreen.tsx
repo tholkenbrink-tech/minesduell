@@ -27,7 +27,7 @@ export function GameConfigScreen() {
   const players = useMatchStore((s) => s.players);
   const updateSettings = useMatchStore((s) => s.updateSettings);
   const startGame = useMatchStore((s) => s.startGame);
-  const goToModeSelect = useMatchStore((s) => s.goToModeSelect);
+  const goToPlayerSetup = useMatchStore((s) => s.goToPlayerSetup);
   const prefs = usePrefsStore();
 
   const validation = useMemo(
@@ -55,8 +55,8 @@ export function GameConfigScreen() {
   return (
     <div className="mx-auto flex min-h-full max-w-2xl flex-col gap-6 px-4 py-10">
       <div>
-        <button className="focus-ring text-sm text-[var(--md-text-muted)]" onClick={goToModeSelect}>
-          ← Start over
+        <button className="focus-ring text-sm text-[var(--md-text-muted)]" onClick={goToPlayerSetup}>
+          ← Back to players
         </button>
         <h1 className="mt-2 text-3xl font-extrabold">Game settings</h1>
         <p className="text-sm text-[var(--md-text-muted)]">

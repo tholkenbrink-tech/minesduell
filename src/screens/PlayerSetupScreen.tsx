@@ -18,16 +18,18 @@ function makePlayer(index: number, name: string): Player {
 
 export function PlayerSetupScreen() {
   const mode = useMatchStore((s) => s.mode);
+  const storedPlayers = useMatchStore((s) => s.players);
   const setPlayersInStore = useMatchStore((s) => s.setPlayers);
   const goToConfig = useMatchStore((s) => s.goToConfig);
   const goToModeSelect = useMatchStore((s) => s.goToModeSelect);
   const recentNames = usePrefsStore((s) => s.recentPlayerNames);
   const addRecentPlayerName = usePrefsStore((s) => s.addRecentPlayerName);
 
-  const [players, setPlayers] = useState<Player[]>(() => [
-    makePlayer(0, 'Player 1'),
-    makePlayer(1, 'Player 2'),
-  ]);
+  // Coming back from Game settings, the roster already saved there (names,
+  // order, count) is restored instead of resetting to two fresh defaults.
+  const [players, setPlayers] = useState<Player[]>(() =>
+    storedPlayers.length > 0 ? storedPlayers : [makePlayer(0, 'Player 1'), makePlayer(1, 'Player 2')],
+  );
   const [randomStart, setRandomStart] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

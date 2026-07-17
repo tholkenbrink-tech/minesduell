@@ -1,7 +1,7 @@
 import type { SVGProps } from 'react';
 import { usePrefsStore } from '../store/usePrefsStore';
 
-export type IconName = 'reveal' | 'flag' | 'pause' | 'diamond' | 'heart' | 'bombMine';
+export type IconName = 'reveal' | 'flag' | 'pause' | 'diamond' | 'heart' | 'bombMine' | 'modeDuel' | 'modeRace' | 'modeCoop';
 
 const CLASSIC: Record<IconName, string> = {
   reveal: '🔍',
@@ -10,6 +10,9 @@ const CLASSIC: Record<IconName, string> = {
   diamond: '💎',
   heart: '❤️',
   bombMine: '💣',
+  modeDuel: '⚔️',
+  modeRace: '🏁',
+  modeCoop: '🤝',
 };
 
 function NeonSvg({ name, ...svgProps }: { name: IconName } & SVGProps<SVGSVGElement>) {
@@ -67,6 +70,26 @@ function NeonSvg({ name, ...svgProps }: { name: IconName } & SVGProps<SVGSVGElem
           <line x1="19.5" y1="3.5" x2="17.5" y2="1.5" />
           <line x1="19.5" y1="3.5" x2="21.5" y2="5.5" />
           <circle cx="19.5" cy="3.5" r="1.3" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case 'modeDuel':
+      return (
+        <svg {...stroke} {...svgProps}>
+          <path d="M5 19L19 5M15 5h4v4M9 19H5v-4" />
+        </svg>
+      );
+    case 'modeRace':
+      return (
+        <svg {...stroke} {...svgProps}>
+          <circle cx="12" cy="12" r="8" />
+          <path d="M12 8v4l3 2" />
+        </svg>
+      );
+    case 'modeCoop':
+      return (
+        <svg {...stroke} {...svgProps}>
+          <path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z" />
+          <path d="M12 8v6M9 11h6" />
         </svg>
       );
   }
