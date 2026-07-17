@@ -175,6 +175,14 @@ export function GameConfigScreen() {
           )}
           {settings.duelVariant === 'turn-by-time' && (
             <div className="mt-3 flex flex-wrap items-end gap-3">
+              <NumberField
+                id="duel-turn-time-seconds"
+                label="Seconds per turn"
+                min={3}
+                max={120}
+                value={settings.duelTimer.seconds}
+                onChange={(v) => updateSettings({ duelTimer: { ...settings.duelTimer, seconds: v } })}
+              />
               <Toggle
                 checked={settings.duelTurnChangeOnMistake}
                 onChange={(v) => updateSettings({ duelTurnChangeOnMistake: v })}
