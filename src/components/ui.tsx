@@ -148,7 +148,17 @@ export function NumberField({
         min={min}
         max={max}
         value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onChange={(e) => {
+          const input = e.target.value.trim();
+          if (input === '') {
+            // Allow empty input (user is clearing the field)
+            return;
+          }
+          const num = Number(input);
+          if (!isNaN(num)) {
+            onChange(num);
+          }
+        }}
         className="focus-ring rounded-[var(--md-radius-sm)] border border-[var(--md-border)] bg-[var(--md-surface)] px-3 py-2 text-[var(--md-text)]"
       />
     </label>
