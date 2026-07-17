@@ -82,21 +82,21 @@ describe('arrangement — default seats', () => {
     expect(seats.map((s) => s.rotation)).toEqual([0, 180]);
   });
 
-  it('rotates a four-player Table bottom → right → top → left', () => {
+  it('rotates a four-player Table bottom → left → top → right', () => {
     const seats = defaultSeats('table', ids(4));
-    expect(seats.map((s) => s.position)).toEqual(['bottom', 'right', 'top', 'left']);
-    expect(seats.map((s) => s.rotation)).toEqual([0, 90, 180, 270]);
+    expect(seats.map((s) => s.position)).toEqual(['bottom', 'left', 'top', 'right']);
+    expect(seats.map((s) => s.rotation)).toEqual([0, 270, 180, 90]);
   });
 
   it('seats a three-player Table on three sides, leaving one empty', () => {
     const seats = defaultSeats('table', ids(3));
-    expect(seats.map((s) => s.position)).toEqual(['bottom', 'right', 'top']);
+    expect(seats.map((s) => s.position)).toEqual(['bottom', 'top', 'right']);
     expect(emptyTableSide(seats)).toBe('left');
   });
 
   it('lets a three-player Table choose which side stays empty', () => {
     const seats = defaultSeats('table', ids(3), { emptySide: 'right' });
-    expect(seats.map((s) => s.position)).toEqual(['bottom', 'top', 'left']);
+    expect(seats.map((s) => s.position)).toEqual(['bottom', 'left', 'top']);
     expect(emptyTableSide(seats)).toBe('right');
   });
 
@@ -114,9 +114,9 @@ describe('arrangement — active content rotation', () => {
     expect(activeContentRotation(seats, 'p1')).toBe(180);
   });
 
-  it('uses 0/90/180/270 for the four Table seats', () => {
+  it('uses 0/270/180/90 for the four Table seats (bottom/left/top/right)', () => {
     const seats = defaultSeats('table', ids(4));
-    expect(['p0', 'p1', 'p2', 'p3'].map((id) => activeContentRotation(seats, id))).toEqual([0, 90, 180, 270]);
+    expect(['p0', 'p1', 'p2', 'p3'].map((id) => activeContentRotation(seats, id))).toEqual([0, 270, 180, 90]);
   });
 
   it('falls back to 0° for an unknown active player', () => {

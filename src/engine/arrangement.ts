@@ -92,13 +92,15 @@ export const ARRANGEMENTS: DeviceArrangement[] = ['side-by-side', 'face-to-face'
 /**
  * Clockwise seat order per player count for the Table arrangement. Seats are
  * assigned in play order, so the engine's sequential turn rotation naturally
- * proceeds clockwise: bottom → right → top → left. Three players leave one side
- * empty (default: left); two players collapse to the Face-to-Face bottom/top.
+ * proceeds clockwise: bottom → left → top → right (visually, as on a clock
+ * face: top-right-bottom-left is clockwise, so the neighbor clockwise of
+ * bottom is left). Three players leave one side empty (default: left); two
+ * players collapse to the Face-to-Face bottom/top.
  */
 const TABLE_SEATS: Record<number, SeatPosition[]> = {
   2: ['bottom', 'top'],
-  3: ['bottom', 'right', 'top'],
-  4: ['bottom', 'right', 'top', 'left'],
+  3: ['bottom', 'top', 'right'],
+  4: ['bottom', 'left', 'top', 'right'],
 };
 
 const FACE_TO_FACE_SEATS: SeatPosition[] = ['bottom', 'top'];
@@ -177,7 +179,7 @@ export function defaultSeats(
   let positions = TABLE_SEATS[n] ?? TABLE_SEATS[4];
   if (n === 3 && opts?.emptySide) {
     // Keep the three occupied sides in clockwise order, dropping the chosen empty one.
-    const clockwise: SeatPosition[] = ['bottom', 'right', 'top', 'left'];
+    const clockwise: SeatPosition[] = ['bottom', 'left', 'top', 'right'];
     positions = clockwise.filter((p) => p !== opts.emptySide);
   }
   return playerIds.map((id, i) => seat(id, positions[i] ?? 'bottom', i));

@@ -347,7 +347,7 @@ function NeonHudRow({
     >
       <div className="flex items-center justify-between gap-2">
         <div
-          className={`flex items-center gap-2 rounded-full py-1 pl-1 pr-3 ${active ? 'md-pulse' : ''}`}
+          className={`flex w-fit shrink-0 items-center gap-2 rounded-full py-1 pl-1 pr-3 ${active ? 'md-pulse' : ''}`}
           style={{
             background: active ? color : 'rgba(255,255,255,0.06)',
             border: `1px solid ${color}`,
@@ -358,11 +358,11 @@ function NeonHudRow({
         >
           <PlayerBadge player={player} size={avatar} active={active} />
           <div className="leading-tight">
-            <div className="md-display font-bold" style={{ fontSize: wide ? 14 : 11, color: textColor }}>
+            <div className="md-display whitespace-nowrap font-bold" style={{ fontSize: wide ? 14 : 11, color: textColor }}>
               {player.name}
             </div>
             <div
-              className="md-display flex gap-2 font-semibold"
+              className="md-display flex gap-2 whitespace-nowrap font-semibold"
               style={{ fontSize: wide ? 11.5 : 9.5, color: mutedColor }}
             >
               <span className="inline-flex items-center gap-0.5">
@@ -413,7 +413,7 @@ function SeatChip({
   const mutedColor = active ? 'var(--md-accent-contrast)' : 'var(--md-neon-text-muted)';
   return (
     <div
-      className={`flex items-center gap-2 rounded-full py-1 pl-1 pr-3 ${active ? 'md-pulse' : ''}`}
+      className={`flex w-fit shrink-0 items-center gap-2 rounded-full py-1 pl-1 pr-3 ${active ? 'md-pulse' : ''}`}
       style={{
         background: active ? color : 'rgba(255,255,255,0.06)',
         border: `1px solid ${color}`,
@@ -425,10 +425,10 @@ function SeatChip({
     >
       <PlayerBadge player={player} size={26} active={active} />
       <div className="leading-tight">
-        <div className="md-display font-bold" style={{ fontSize: 12, color: textColor }}>
+        <div className="md-display whitespace-nowrap font-bold" style={{ fontSize: 12, color: textColor }}>
           {player.name}
         </div>
-        <div className="md-display flex gap-2 font-semibold" style={{ fontSize: 10, color: mutedColor }}>
+        <div className="md-display flex gap-2 whitespace-nowrap font-semibold" style={{ fontSize: 10, color: mutedColor }}>
           <span className="inline-flex items-center gap-0.5">
             <Icon name="diamond" size={10} /> {stats.minesDetected}
           </span>
@@ -481,7 +481,7 @@ function CornerIndicator({
     <div className="pointer-events-none absolute z-10" style={CORNER_STYLE[corner]}>
       <RotatedGroup rotation={rotation} className="flex flex-col items-start gap-1">
         <div
-          className={`flex items-center gap-1 rounded-full py-0.5 pl-0.5 pr-2 ${active ? 'md-pulse' : ''}`}
+          className={`flex w-fit shrink-0 items-center gap-1 whitespace-nowrap rounded-full py-0.5 pl-0.5 pr-2 ${active ? 'md-pulse' : ''}`}
           style={{
             background: active ? color : 'rgba(10,11,20,0.82)',
             border: `1px solid ${color}`,

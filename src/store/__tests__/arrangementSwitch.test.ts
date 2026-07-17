@@ -34,7 +34,7 @@ describe('arrangement switching mid-match', () => {
     expect(useMatchStore.getState().seats.map((s) => s.position)).toEqual(['bottom', 'top']);
 
     startDuel('table', 4);
-    expect(useMatchStore.getState().seats.map((s) => s.position)).toEqual(['bottom', 'right', 'top', 'left']);
+    expect(useMatchStore.getState().seats.map((s) => s.position)).toEqual(['bottom', 'left', 'top', 'right']);
   });
 
   it('preserves every gameplay value when switching arrangement while paused', () => {
