@@ -544,6 +544,7 @@ export function BoardView({
           style={{
             width: boardPixelWidth,
             height: boardPixelHeight,
+            paddingBottom: tile,
             transformOrigin: '0 0',
             transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
           }}

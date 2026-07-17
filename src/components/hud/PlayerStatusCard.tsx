@@ -25,7 +25,7 @@ export function PlayerStatusCard({
       style={{ transform: `rotate(${orientationDeg}deg)` }}
     >
       <PlayerBadge player={player} size={compact ? 26 : 32} active={active} />
-      <div className="min-w-0 text-left">
+      <div className="flex min-w-0 flex-col justify-center text-left">
         <p className="truncate text-xs font-bold leading-tight">{player.name}</p>
         <p className="flex items-center gap-2 text-[11px] leading-tight text-[var(--md-text-muted)]">
           <span className="inline-flex items-center gap-0.5">
