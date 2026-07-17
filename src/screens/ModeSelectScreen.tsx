@@ -42,7 +42,7 @@ const MODES: ModeInfo[] = [
   },
   {
     mode: 'coop',
-    title: 'Co-op Survival',
+    title: 'Co-Op',
     tagline: 'Team up, share the risk',
     icon: 'modeCoop',
     objective: 'Two to four players solve one board together while protecting shared lives.',
@@ -67,42 +67,26 @@ export function ModeSelectScreen() {
       </div>
 
       {/* One tap selects a mode and opens its detail card below; the small ▶
-          badge on each tile jumps straight into player setup for that mode
-          without opening details at all. */}
+          selecting a mode reveals its details and Start button below. */}
       <div role="tablist" aria-label="Game mode" className="flex w-full gap-2">
         {MODES.map((m) => {
           const isActive = m.mode === activeMode;
           return (
-            <div
+            <button
               key={m.mode}
-              className="flex flex-1 items-center gap-1 rounded-[var(--md-radius-md)] border border-[var(--md-border)] p-1 transition-colors"
-              style={{ background: isActive ? m.accent : 'var(--md-surface-2)' }}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setActiveMode(m.mode)}
+              className="focus-ring flex min-w-0 flex-1 basis-0 items-center justify-center gap-2 rounded-[var(--md-radius-md)] border border-[var(--md-border)] px-2 py-2.5 text-xs font-bold transition-colors sm:text-sm"
+              style={{
+                background: isActive ? m.accent : 'var(--md-surface-2)',
+                color: isActive ? 'var(--md-accent-contrast)' : 'var(--md-text)',
+              }}
             >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                onClick={() => setActiveMode(m.mode)}
-                className="focus-ring flex flex-1 flex-col items-center gap-1 rounded-[var(--md-radius-sm)] px-1 py-1.5 text-xs font-bold sm:flex-row sm:justify-center sm:gap-2 sm:text-sm"
-                style={{ color: isActive ? 'var(--md-accent-contrast)' : 'var(--md-text)' }}
-              >
-                <Icon name={m.icon} size={18} />
-                <span className="truncate">{m.title}</span>
-              </button>
-              <button
-                type="button"
-                aria-label={`Play ${m.title}`}
-                title={`Play ${m.title} — jump straight in`}
-                onClick={() => selectMode(m.mode)}
-                className="focus-ring flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px]"
-                style={{
-                  color: isActive ? 'var(--md-accent-contrast)' : 'var(--md-text-muted)',
-                  background: isActive ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.08)',
-                }}
-              >
-                ▶
-              </button>
-            </div>
+              <Icon name={m.icon} size={18} />
+              <span className="truncate">{m.title}</span>
+            </button>
           );
         })}
       </div>

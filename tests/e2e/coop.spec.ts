@@ -6,7 +6,7 @@ test('completes a small co-op game (team wins or is eliminated deterministically
   // A single mine on a small board almost always cascades most of the board
   // open in very few reveals, and turns rotate (with a ~550ms transition
   // lock) after every action, so wait that out between clicks.
-  await startMatch(page, { mode: 'Co-op Survival', width: 6, height: 6, mines: 1 });
+  await startMatch(page, { mode: 'Co-Op', width: 6, height: 6, mines: 1 });
 
   await expect(page.getByText('Player 1')).toBeVisible();
   await expect(page.getByText('Player 2')).toBeVisible();
@@ -26,7 +26,7 @@ test('completes a small co-op game (team wins or is eliminated deterministically
 test('plain reveals never rotate the turn — only a mistake or marking 5 bombs does', async ({ page }) => {
   // Denser mine field so a single reveal is very unlikely to cascade the
   // entire board open and end the game before we get to check rotation.
-  await startMatch(page, { mode: 'Co-op Survival', width: 12, height: 12, mines: 28 });
+  await startMatch(page, { mode: 'Co-Op', width: 12, height: 12, mines: 28 });
   const active = () => page.locator('[class*="border-\\[var(--md-accent)\\]"]').first().textContent();
 
   const first = await active();
@@ -63,7 +63,7 @@ test('an incorrect flag ends the round immediately', async ({ page }) => {
   // right away regardless of how many bombs were marked before it — but not
   // so sparse that the first reveal's cascade clears (and ends) the board
   // before there's anything left to flag.
-  await startMatch(page, { mode: 'Co-op Survival', width: 10, height: 10, mines: 15 });
+  await startMatch(page, { mode: 'Co-Op', width: 10, height: 10, mines: 15 });
   const active = () => page.locator('[class*="border-\\[var(--md-accent)\\]"]').first().textContent();
 
   await gridCells(page).nth(0).click(); // generate the board with a safe first reveal

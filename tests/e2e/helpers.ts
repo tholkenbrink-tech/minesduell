@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 export async function startMatch(
   page: Page,
   opts: {
-    mode: 'Duel' | 'Race' | 'Co-op Survival';
+    mode: 'Duel' | 'Race' | 'Co-Op';
     width?: number;
     height?: number;
     mines?: number;
@@ -11,7 +11,8 @@ export async function startMatch(
   },
 ) {
   await page.goto('/');
-  await page.getByRole('button', { name: `Play ${opts.mode}` }).click();
+  await page.getByRole('tab', { name: opts.mode }).click();
+  await page.getByRole('button', { name: `Start ${opts.mode}` }).click();
   await page.getByRole('button', { name: 'Continue to settings' }).click();
 
   if (opts.width) await page.locator('#board-width').fill(String(opts.width));

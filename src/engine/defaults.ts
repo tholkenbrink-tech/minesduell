@@ -3,7 +3,7 @@ import type { GameMode, GameSettings } from './types';
 /** Human-readable name for a mode, used in headings/labels. */
 export function modeDisplayName(mode: GameMode): string {
   if (mode === 'race') return 'Race';
-  if (mode === 'coop') return 'Co-op Survival';
+  if (mode === 'coop') return 'Co-Op';
   return 'Duell';
 }
 
