@@ -32,18 +32,25 @@ export function useRotatedSize(rotation: SeatRotation): {
   useLayoutEffect(() => {
     const el = contentRef.current;
     if (el) {
-      const rect = el.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) setSizeIfChanged({ width: rect.width, height: rect.height });
+      // offsetWidth/Height reflect the layout box and ignore `transform`,
+      // unlike getBoundingClientRect() — which would report the *already
+      // rotated* (visually swapped) box here, since contentRef is the very
+      // element the rotate() is applied to. Measuring the rotated box and
+      // then swapping it again (below) silently un-swaps back to the wrong
+      // (pre-rotation) dimensions for the wrapper.
+      const { offsetWidth: width, offsetHeight: height } = el;
+      if (width > 0 && height > 0) setSizeIfChanged({ width, height });
     }
   });
 
   useLayoutEffect(() => {
     const el = contentRef.current;
     if (!el) return;
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) return;
-      const { width, height } = entry.contentRect;
+    // Re-measure via offsetWidth/Height (not entry.contentRect) on every
+    // callback too, for the same rotation-safety reason as above — the
+    // ResizeObserver entry is only used as the "something changed" signal.
+    const observer = new ResizeObserver(() => {
+      const { offsetWidth: width, offsetHeight: height } = el;
       if (width === 0 || height === 0) return;
       setSizeIfChanged({ width, height });
     });
