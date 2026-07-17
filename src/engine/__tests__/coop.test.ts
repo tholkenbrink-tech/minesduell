@@ -16,28 +16,48 @@ function firstMinePosition(board: ReturnType<typeof createCoopMatch>['board']) {
 }
 
 describe('coop survival mode', () => {
-  it('keeps the active player for up to 5 correct actions, then rotates', () => {
+  it('reveals never rotate the turn by themselves — only mistakes or marking 5 bombs do', () => {
     const settings = defaultCoopSettings();
     let state = createCoopMatch(settings, makePlayers(3), 20);
     const first = state.activePlayerIndex;
-    state = applyCoopReveal(state, { x: 0, y: 0 }).state; // action 1 (generates board)
-    expect(state.turnActionsCount).toBe(1);
+    state = applyCoopReveal(state, { x: 0, y: 0 }).state; // generates the board
     expect(state.activePlayerIndex).toBe(first);
 
-    // Collect non-mine cells to click for actions 2–5 (mistakes would rotate early).
+    // Reveal several more safe cells — no amount of plain reveals should rotate the turn.
     const safe: { x: number; y: number }[] = [];
-    for (let y = 0; y < state.board.height && safe.length < 4; y++) {
-      for (let x = 0; x < state.board.width && safe.length < 4; x++) {
-        if (!state.board.cells[y][x].mine && !(x === 0 && y === 0)) safe.push({ x, y });
+    for (let y = 0; y < state.board.height && safe.length < 6; y++) {
+      for (let x = 0; x < state.board.width && safe.length < 6; x++) {
+        if (!state.board.cells[y][x].mine && !state.board.cells[y][x].revealed) safe.push({ x, y });
       }
     }
-    // actions 2, 3, 4 — still the same player
-    for (let i = 0; i < 3; i++) {
-      state = applyCoopReveal(state, safe[i]).state;
+    for (const pos of safe) {
+      if (state.board.cells[pos.y][pos.x].revealed) continue;
+      state = applyCoopReveal(state, pos).state;
       expect(state.activePlayerIndex).toBe(first);
     }
-    // action 5 — rotates to the next player
-    state = applyCoopReveal(state, safe[3]).state;
+  });
+
+  it('keeps the active player for up to 5 correctly-marked bombs, then rotates', () => {
+    const settings = defaultCoopSettings();
+    let state = createCoopMatch(settings, makePlayers(3), 20);
+    const first = state.activePlayerIndex;
+    state = applyCoopReveal(state, { x: 0, y: 0 }).state; // generates the board
+
+    const mines: { x: number; y: number }[] = [];
+    for (let y = 0; y < state.board.height && mines.length < 5; y++) {
+      for (let x = 0; x < state.board.width && mines.length < 5; x++) {
+        if (state.board.cells[y][x].mine) mines.push({ x, y });
+      }
+    }
+    expect(mines.length).toBe(5);
+
+    // Marking bombs 1–4 keeps the same player.
+    for (let i = 0; i < 4; i++) {
+      state = applyCoopFlag(state, mines[i]).state;
+      expect(state.activePlayerIndex).toBe(first);
+    }
+    // Marking the 5th bomb ends the round and rotates to the next player.
+    state = applyCoopFlag(state, mines[4]).state;
     expect(state.activePlayerIndex).not.toBe(first);
   });
 

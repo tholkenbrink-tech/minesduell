@@ -32,7 +32,6 @@ export function defaultDuelSettings(): GameSettings {
     raceLives: 3,
     raceScoring: 'time',
     raceCompletionRule: 'reveal-all-safe',
-    raceFlagCostsLife: false,
     raceMaxSeconds: 0,
     coopLives: 3,
     coopLifeCap: 5,
@@ -53,7 +52,6 @@ export function defaultRaceSettings(): GameSettings {
     raceLives: 3,
     raceScoring: 'time',
     raceCompletionRule: 'reveal-all-safe',
-    raceFlagCostsLife: false,
     raceMaxSeconds: 0,
   };
 }

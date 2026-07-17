@@ -140,17 +140,17 @@ export function applyRaceFlag(state: RaceState, pos: Position): RaceActionResult
   if (result.correct === true) {
     run.stats.minesDetected += 1;
   } else if (result.correct === false) {
+    // A wrongly-flagged safe tile is a mistake — it costs a life, same as an
+    // incorrect reveal.
     run.stats.incorrectFlags += 1;
-    if (state.settings.raceFlagCostsLife) {
-      run.stats.lives -= 1;
-      events.push({ type: 'LIFE_LOST', playerId, data: { livesRemaining: run.stats.lives } });
-      if (run.stats.lives <= 0) {
-        run.stats.eliminated = true;
-        events.push({ type: 'PLAYER_ELIMINATED', playerId });
-        state.log.push(...events);
-        finishRaceRun(state, 'lives-lost');
-        return { state, events, finished: true };
-      }
+    run.stats.lives -= 1;
+    events.push({ type: 'LIFE_LOST', playerId, data: { livesRemaining: run.stats.lives } });
+    if (run.stats.lives <= 0) {
+      run.stats.eliminated = true;
+      events.push({ type: 'PLAYER_ELIMINATED', playerId });
+      state.log.push(...events);
+      finishRaceRun(state, 'lives-lost');
+      return { state, events, finished: true };
     }
   }
 

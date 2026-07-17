@@ -155,4 +155,38 @@ describe('race mode', () => {
     applyRaceFlag(state, { x: 0, y: 0 });
     expect(state.runs.p0.stats.revealActions).toBe(0);
   });
+
+  it('wrongly flagging a safe tile costs a life, same as revealing a mine', () => {
+    const settings = { ...defaultRaceSettings(), raceLives: 3 };
+    const state = createRaceMatch(settings, makePlayers(1), 1);
+    startRaceRun(state);
+    applyRaceReveal(state, { x: 0, y: 0 }); // generate the board
+    const run = state.runs.p0;
+    const livesBefore = run.stats.lives;
+    let safe: { x: number; y: number } | null = null;
+    for (let y = 0; y < run.board.height && !safe; y++) {
+      for (let x = 0; x < run.board.width && !safe; x++) {
+        const c = run.board.cells[y][x];
+        if (!c.mine && !c.revealed && !c.flagged) safe = { x, y };
+      }
+    }
+    const result = applyRaceFlag(state, safe!);
+    expect(run.stats.lives).toBe(livesBefore - 1);
+    expect(result.events.some((e) => e.type === 'LIFE_LOST')).toBe(true);
+  });
+
+  it('does not penalize a correct flag on a mine', () => {
+    const settings = { ...defaultRaceSettings(), raceLives: 3 };
+    const state = createRaceMatch(settings, makePlayers(1), 1);
+    startRaceRun(state);
+    applyRaceReveal(state, { x: 0, y: 0 });
+    const run = state.runs.p0;
+    const livesBefore = run.stats.lives;
+    let mine: { x: number; y: number } | null = null;
+    for (let y = 0; y < run.board.height && !mine; y++)
+      for (let x = 0; x < run.board.width && !mine; x++) if (run.board.cells[y][x].mine) mine = { x, y };
+    applyRaceFlag(state, mine!);
+    expect(run.stats.lives).toBe(livesBefore);
+    expect(run.stats.minesDetected).toBe(1);
+  });
 });

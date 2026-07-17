@@ -69,8 +69,11 @@ export function ResultsScreen() {
   if (mode === 'race') {
     const race = match as RaceState;
     const ranking = rankRaceResults(race);
+    const winner = ranking.length > 0 ? players.find((p) => p.id === ranking[0].playerId) : undefined;
     return (
       <Shell title="Race results">
+        {winner && <p className="text-lg font-bold">{winner.name} wins the race!</p>}
+        {players.length > 2 && <p className="text-sm text-[var(--md-text-muted)]">Final standings:</p>}
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="text-[var(--md-text-muted)]">

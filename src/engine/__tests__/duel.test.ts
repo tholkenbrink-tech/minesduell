@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultDuelSettings } from '../defaults';
-import { createDuelMatch, applyDuelFlag, applyDuelReveal, handleDuelTimerExpired } from '../duel';
+import { createDuelMatch, applyDuelFlag, applyDuelReveal, handleDuelTimerExpired, compareDuelPlayers } from '../duel';
 import type { Player } from '../types';
 
 function makePlayers(n: number): Player[] {
@@ -275,6 +275,30 @@ describe('duel mode', () => {
     }
     const anyEliminated = Object.values(state.stats).some((s) => s.eliminated);
     expect(anyEliminated || state.status === 'completed').toBe(true);
+  });
+
+  it('ranks by defused bombs, then lives, then clean clicks (excluding mistakes)', () => {
+    const settings = { ...defaultDuelSettings(), duelVariant: 'survival' as const };
+    let state = createDuelMatch(settings, makePlayers(2), 3);
+    const [p0, p1] = state.players.map((p) => p.id);
+
+    // Both players: 20 defused bombs, equal lives. p1 has more clean clicks.
+    state.stats[p0].minesDetected = 20;
+    state.stats[p1].minesDetected = 20;
+    state.stats[p0].lives = 2;
+    state.stats[p1].lives = 2;
+    state.stats[p0].revealActions = 19;
+    state.stats[p0].minesTriggered = 0; // 19 clean clicks
+    state.stats[p1].revealActions = 21;
+    state.stats[p1].minesTriggered = 1; // 20 clean clicks
+
+    const result = compareDuelPlayers(state, state.players[0], state.players[1]);
+    expect(result > 0).toBe(true); // p1 (more clean clicks) ranks ahead of p0
+
+    // Fewer defused bombs always loses, regardless of clicks.
+    state.stats[p0].minesDetected = 19;
+    const bombsResult = compareDuelPlayers(state, state.players[0], state.players[1]);
+    expect(bombsResult > 0).toBe(true);
   });
 
   it('timer expiration in pass-turn mode rotates to the next player', () => {
