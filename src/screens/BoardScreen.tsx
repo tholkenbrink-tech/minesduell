@@ -380,7 +380,12 @@ export function BoardScreen() {
         <span className="inline-flex shrink-0 items-center gap-1 font-semibold">
           <Icon name="bombMine" size={12} /> {countRemainingMines(duel.board)} left
         </span>
-        {duel.settings.duelTimer.enabled && (
+        {duel.settings.duelVariant === 'turn-by-moves' && (
+          <span className="inline-flex shrink-0 items-center gap-1 font-semibold">
+            {duel.settings.duelMaxActionsPerTurn - duel.turnActionsCount} moves left
+          </span>
+        )}
+        {duel.settings.duelTimer.enabled && (duel.settings.duelVariant === 'turn-by-time' || duel.settings.duelVariant === 'streak') && (
           <div className="w-24 shrink-0 sm:w-28">
             <TurnTimer
               // Reset on every action (turnActionsCount) as well as on turn change

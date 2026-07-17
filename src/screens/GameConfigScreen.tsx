@@ -143,22 +143,23 @@ export function GameConfigScreen() {
             onChange={(v) =>
               updateSettings({
                 duelVariant: v,
-                ...(v === 'turn' && settings.duelMaxActionsPerTurn === 0
+                ...(v === 'turn-by-moves' && settings.duelMaxActionsPerTurn === 0
                   ? { duelMaxActionsPerTurn: DEFAULT_DUEL_TURN_CLICK_LIMIT }
                   : {}),
               })
             }
             options={[
               { value: 'streak', label: 'Streak' },
-              { value: 'turn', label: 'Turn' },
+              { value: 'turn-by-moves', label: 'Turn by Moves' },
+              { value: 'turn-by-time', label: 'Turn by Time' },
             ]}
-            columns={2}
+            columns={3}
           />
-          {settings.duelVariant === 'turn' && (
+          {settings.duelVariant === 'turn-by-moves' && (
             <div className="mt-3 flex flex-wrap items-end gap-3">
               <NumberField
                 id="duel-turn-click-limit"
-                label="Clicks per turn"
+                label="Moves per turn"
                 min={1}
                 max={50}
                 value={settings.duelMaxActionsPerTurn || DEFAULT_DUEL_TURN_CLICK_LIMIT}
@@ -168,7 +169,17 @@ export function GameConfigScreen() {
                 checked={settings.duelTurnChangeOnMistake}
                 onChange={(v) => updateSettings({ duelTurnChangeOnMistake: v })}
                 label="Change turn on mistake"
-                description="Off: always play your full click count, and this mode has no lives."
+                description="Off: always play your full move count, and this mode has no lives."
+              />
+            </div>
+          )}
+          {settings.duelVariant === 'turn-by-time' && (
+            <div className="mt-3 flex flex-wrap items-end gap-3">
+              <Toggle
+                checked={settings.duelTurnChangeOnMistake}
+                onChange={(v) => updateSettings({ duelTurnChangeOnMistake: v })}
+                label="Change turn on mistake"
+                description="Mistakes end the current turn early."
               />
             </div>
           )}

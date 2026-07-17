@@ -77,7 +77,7 @@ export interface Player {
 // migrateArrangement() in engine/arrangement.ts for how saved values migrate.
 export type DeviceArrangement = 'side-by-side' | 'face-to-face' | 'table';
 
-export type DuelVariant = 'streak' | 'turn';
+export type DuelVariant = 'streak' | 'turn-by-moves' | 'turn-by-time';
 export type DuelTargetType = 'first-to' | 'majority' | 'complete-board';
 
 export interface DuelTarget {
@@ -122,8 +122,8 @@ export interface GameSettings {
   duelVariant: DuelVariant;
   duelTarget: DuelTarget;
   duelTimer: TimerConfig;
-  duelMaxActionsPerTurn: number; // 0 = unlimited; in the turn variant this is the click limit
-  duelTurnChangeOnMistake: boolean; // turn variant only: does a mistake also end the current turn?
+  duelMaxActionsPerTurn: number; // 0 = unlimited; in turn-by-moves this is the moves per turn limit
+  duelTurnChangeOnMistake: boolean; // turn-by-moves and turn-by-time only: does a mistake also end the current turn?
   duelMistakeLimit: DuelMistakeLimit; // shared by streak and turn
 
   // Race-specific

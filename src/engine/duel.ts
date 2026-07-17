@@ -27,12 +27,12 @@ export interface DuelState {
 /**
  * Whether a mistake (mine reveal / incorrect flag) has any effect on the turn
  * or life count at all. True for streak always; for turn only when the
- * "change turn on mistake" toggle is on. When false (turn mode, toggle off),
- * mistakes are inert — the player always gets their full click allowance and
+ * "change turn on mistake" toggle is on. When false (turn-by-moves mode, toggle off),
+ * mistakes are inert — the player always gets their full move allowance and
  * this mode has no lives.
  */
 export function duelMistakesMatter(settings: GameSettings): boolean {
-  return settings.duelVariant === 'streak' || (settings.duelVariant === 'turn' && settings.duelTurnChangeOnMistake);
+  return settings.duelVariant === 'streak' || ((settings.duelVariant === 'turn-by-moves' || settings.duelVariant === 'turn-by-time') && settings.duelTurnChangeOnMistake);
 }
 
 /** Whether this match tracks a finite life/mistake budget (vs. unlimited mistakes). */
