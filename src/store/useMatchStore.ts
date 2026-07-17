@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { ActionMode, DeviceArrangement, GameEvent, GameMode, GameSettings, Player, Position } from '../engine/types';
-import { defaultSettingsForMode } from '../engine/defaults';
+import { defaultSettingsForMode, DEFAULT_DUEL_MISTAKE_LIMIT_COUNT } from '../engine/defaults';
 import { defaultSeats, migrateArrangement, type PlayerSeat } from '../engine/arrangement';
 import { cloneBoard } from '../engine/board';
 import { hashSeed, mulberry32 } from '../engine/rng';
@@ -274,7 +274,18 @@ function restoreActiveMatch(): Partial<MatchStore> | null {
   // Migrate a legacy 'auto' (or any unknown) arrangement to a supported one,
   // and rebuild seats if the saved data predates the arrangement layer.
   const arrangement = migrateArrangement(saved.settings.arrangement);
-  const settings: GameSettings = { ...saved.settings, arrangement };
+  // Migrate legacy Duell variants (removed 'classic'/'survival' options) and
+  // backfill fields that predate the turn variant / mistake-limit settings.
+  const savedDuelVariant = saved.settings.duelVariant as string;
+  const duelVariant =
+    savedDuelVariant === 'classic' || savedDuelVariant === 'survival' ? 'streak' : saved.settings.duelVariant;
+  const settings: GameSettings = {
+    ...saved.settings,
+    arrangement,
+    duelVariant,
+    duelTurnChangeOnMistake: saved.settings.duelTurnChangeOnMistake ?? true,
+    duelMistakeLimit: saved.settings.duelMistakeLimit ?? { mode: 'unlimited', count: DEFAULT_DUEL_MISTAKE_LIMIT_COUNT },
+  };
   const seats =
     saved.seats && saved.seats.length === saved.players.length
       ? saved.seats

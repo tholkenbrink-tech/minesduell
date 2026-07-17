@@ -90,16 +90,6 @@ describe('duel mode', () => {
     expect(state.activePlayerIndex).toBe(activeBefore);
   });
 
-  it('classic variant: a plain numbered reveal ends the turn', () => {
-    const settings = { ...defaultDuelSettings(), duelVariant: 'classic' as const };
-    let state = createDuelMatch(settings, makePlayers(2), 3);
-    state = applyDuelReveal(state, { x: 0, y: 0 }).state;
-    const numbered = firstSafeNumberedPosition(state, { x: 0, y: 0 });
-    const activeBefore = state.activePlayerIndex;
-    applyDuelReveal(state, numbered);
-    expect(state.activePlayerIndex).not.toBe(activeBefore);
-  });
-
   it('streak variant only passes the turn on a mistake (mine reveal / bad flag)', () => {
     const settings = defaultDuelSettings();
     let state = createDuelMatch(settings, makePlayers(2), 3);
@@ -139,16 +129,6 @@ describe('duel mode', () => {
     applyDuelReveal(state, firstMinePosition(state));
     expect(state.activePlayerIndex).not.toBe(before);
     expect(state.turnActionsCount).toBe(0);
-  });
-
-  it('classic variant always passes the turn, even on a correct flag', () => {
-    const settings = { ...defaultDuelSettings(), duelVariant: 'classic' as const };
-    let state = createDuelMatch(settings, makePlayers(2), 11);
-    state = applyDuelReveal(state, { x: 0, y: 0 }).state;
-    const minePos = firstMinePosition(state);
-    const activeBefore = state.activePlayerIndex;
-    applyDuelFlag(state, minePos);
-    expect(state.activePlayerIndex).not.toBe(activeBefore);
   });
 
   it('re-toggling the same mine flag does not grant a second point (anti-exploit)', () => {
@@ -210,16 +190,16 @@ describe('duel mode', () => {
     expect(state.stats[p2].minesDetected).toBe(0);
   });
 
-  it('no-op taps on committed tiles leave turn and action state untouched (classic variant)', () => {
-    // Classic normally passes the turn on EVERY action — a no-op on a
-    // committed tile must not count as an action or rotate the turn.
-    const settings = { ...defaultDuelSettings(), duelVariant: 'classic' as const };
+  it('no-op taps on committed tiles leave turn and action state untouched (turn variant, 1 click per turn)', () => {
+    // A 1-click-per-turn Turn match passes the turn on EVERY real action — a
+    // no-op on a committed tile must not count as an action or rotate the turn.
+    const settings = { ...defaultDuelSettings(), duelVariant: 'turn' as const, duelMaxActionsPerTurn: 1 };
     let state = createDuelMatch(settings, makePlayers(2), 11);
     state = applyDuelReveal(state, { x: 0, y: 0 }).state;
     const minePos = firstMinePosition(state);
 
-    // Player 2 (after classic turn pass) flags the mine — scores and commits,
-    // and classic passes the turn back to player 1.
+    // Player 2 (after the 1-click turn pass) flags the mine — scores and
+    // commits, and the click limit passes the turn back to player 1.
     applyDuelFlag(state, minePos);
 
     const activeBefore = state.activePlayerIndex;
@@ -253,8 +233,62 @@ describe('duel mode', () => {
     expect(state.winnerId).toBe(activeId);
   });
 
-  it('survival duel eliminates a player at zero lives and eventually ends the game', () => {
-    const settings = { ...defaultDuelSettings(), duelVariant: 'survival' as const };
+  it('turn variant passes the turn after the configured number of interactions', () => {
+    const settings = { ...defaultDuelSettings(), duelVariant: 'turn' as const, duelMaxActionsPerTurn: 3 };
+    let state = createDuelMatch(settings, makePlayers(2), 3);
+    const activeBefore = state.activePlayerIndex;
+    state = applyDuelReveal(state, { x: 0, y: 0 }).state; // action 1
+    expect(state.activePlayerIndex).toBe(activeBefore);
+    for (let i = 0; i < 2; i++) {
+      const numbered = firstSafeNumberedPosition(state, { x: 0, y: 0 });
+      state = applyDuelReveal(state, numbered).state; // actions 2 and 3
+    }
+    // The 3rd action hits the click limit and passes the turn.
+    expect(state.activePlayerIndex).not.toBe(activeBefore);
+    expect(state.turnActionsCount).toBe(0);
+  });
+
+  it('turn variant with change-turn-on-mistake ENABLED ends the turn immediately on a mistake, before the click budget runs out', () => {
+    const settings = { ...defaultDuelSettings(), duelVariant: 'turn' as const, duelMaxActionsPerTurn: 10, duelTurnChangeOnMistake: true };
+    let state = createDuelMatch(settings, makePlayers(2), 3);
+    state = applyDuelReveal(state, { x: 0, y: 0 }).state; // action 1
+    const activeBefore = state.activePlayerIndex;
+    state = applyDuelReveal(state, firstMinePosition(state)).state; // action 2: a mistake
+    expect(state.activePlayerIndex).not.toBe(activeBefore);
+    expect(state.turnActionsCount).toBe(0);
+  });
+
+  it('turn variant with change-turn-on-mistake DISABLED: a mistake does not end the turn early', () => {
+    const settings = { ...defaultDuelSettings(), duelVariant: 'turn' as const, duelMaxActionsPerTurn: 5, duelTurnChangeOnMistake: false };
+    let state = createDuelMatch(settings, makePlayers(2), 3);
+    const activeBefore = state.activePlayerIndex;
+    state = applyDuelReveal(state, { x: 0, y: 0 }).state; // action 1
+    state = applyDuelReveal(state, firstMinePosition(state)).state; // action 2: a mistake, but the toggle is off
+    expect(state.activePlayerIndex).toBe(activeBefore); // turn is NOT ended by the mistake
+    expect(state.turnActionsCount).toBe(2); // still counted toward the click budget
+  });
+
+  it('turn variant with change-turn-on-mistake DISABLED: no lives, and the player always gets their full click budget', () => {
+    const settings = {
+      ...defaultDuelSettings(),
+      duelVariant: 'turn' as const,
+      duelMaxActionsPerTurn: 2,
+      duelTurnChangeOnMistake: false,
+      duelMistakeLimit: { mode: 'limited' as const, count: 1 }, // configured, but inert in this mode
+    };
+    let state = createDuelMatch(settings, makePlayers(2), 3);
+    const p1 = state.players[state.activePlayerIndex].id;
+    expect(state.stats[p1].lives).toBe(Infinity); // no lives at all when the toggle is off
+    const activeBefore = state.activePlayerIndex;
+    state = applyDuelReveal(state, { x: 0, y: 0 }).state; // action 1
+    state = applyDuelReveal(state, firstMinePosition(state)).state; // action 2: a mistake
+    // Turn only ends because the 2-click budget is exhausted, not the mistake.
+    expect(state.activePlayerIndex).not.toBe(activeBefore);
+    expect(state.stats[p1].eliminated).toBe(false);
+  });
+
+  it('a limited mistake budget ends the round once a player exhausts it (shared by streak and turn)', () => {
+    const settings = { ...defaultDuelSettings(), duelVariant: 'streak' as const, duelMistakeLimit: { mode: 'limited' as const, count: 2 } };
     let state = createDuelMatch(settings, makePlayers(2), 3);
     state = applyDuelReveal(state, { x: 0, y: 0 }).state;
     // Repeatedly make incorrect flags (each is a mistake -> life lost -> turn passes)
@@ -271,10 +305,30 @@ describe('duel mode', () => {
         }
       }
       if (!safe) break;
-      applyDuelFlag(state, safe);
+      state = applyDuelFlag(state, safe).state;
     }
     const anyEliminated = Object.values(state.stats).some((s) => s.eliminated);
-    expect(anyEliminated || state.status === 'completed').toBe(true);
+    expect(anyEliminated).toBe(true);
+    expect(state.status).toBe('completed');
+  });
+
+  it('an unlimited mistake limit lets mistakes pass the turn without ever ending the round', () => {
+    const settings = {
+      ...defaultDuelSettings(),
+      duelVariant: 'turn' as const,
+      duelMaxActionsPerTurn: 10,
+      duelTurnChangeOnMistake: true,
+      duelMistakeLimit: { mode: 'unlimited' as const, count: 3 },
+    };
+    let state = createDuelMatch(settings, makePlayers(2), 3);
+    state = applyDuelReveal(state, { x: 0, y: 0 }).state;
+    const p1 = state.players[state.activePlayerIndex].id;
+    expect(state.stats[p1].lives).toBe(Infinity);
+    const activeBefore = state.activePlayerIndex;
+    state = applyDuelReveal(state, firstMinePosition(state)).state; // mistake
+    expect(state.activePlayerIndex).not.toBe(activeBefore); // the turn passes...
+    expect(state.status).toBe('playing'); // ...but the round continues
+    expect(state.stats[p1].eliminated).toBe(false);
   });
 
   it('timer expiration in pass-turn mode rotates to the next player', () => {

@@ -77,12 +77,20 @@ export interface Player {
 // migrateArrangement() in engine/arrangement.ts for how saved values migrate.
 export type DeviceArrangement = 'side-by-side' | 'face-to-face' | 'table';
 
-export type DuelVariant = 'classic' | 'streak' | 'survival';
+export type DuelVariant = 'streak' | 'turn';
 export type DuelTargetType = 'first-to' | 'majority' | 'complete-board';
 
 export interface DuelTarget {
   type: DuelTargetType;
   count?: number; // used for 'first-to'
+}
+
+export type DuelMistakeLimitMode = 'limited' | 'unlimited';
+
+/** Shared by the streak and turn variants: how accumulated mistakes affect the round. */
+export interface DuelMistakeLimit {
+  mode: DuelMistakeLimitMode;
+  count: number; // total mistakes allowed before the round ends; used when mode === 'limited'
 }
 
 export type TimerBehavior = 'pass-turn' | 'elimination' | 'sudden-death';
@@ -114,7 +122,9 @@ export interface GameSettings {
   duelVariant: DuelVariant;
   duelTarget: DuelTarget;
   duelTimer: TimerConfig;
-  duelMaxActionsPerTurn: number; // 0 = unlimited
+  duelMaxActionsPerTurn: number; // 0 = unlimited; in the turn variant this is the click limit
+  duelTurnChangeOnMistake: boolean; // turn variant only: does a mistake also end the current turn?
+  duelMistakeLimit: DuelMistakeLimit; // shared by streak and turn
 
   // Race-specific
   raceLives: number;

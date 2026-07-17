@@ -4,6 +4,7 @@ import { usePrefsStore } from '../store/usePrefsStore';
 import { countRemainingMines } from '../engine/board';
 import type { GameEvent, Position } from '../engine/types';
 import type { DuelState } from '../engine/duel';
+import { duelHasLives } from '../engine/duel';
 import type { RaceState } from '../engine/race';
 import type { CoopState } from '../engine/coop';
 import { BoardView } from '../components/board/BoardView';
@@ -313,7 +314,7 @@ export function BoardScreen() {
           board={duel.board}
           stats={duel.stats}
           activePlayerIndex={duel.activePlayerIndex}
-          showLives={duel.settings.duelVariant === 'survival'}
+          showLives={duelHasLives(duel.settings)}
           minesLeft={countRemainingMines(duel.board)}
           actionMode={actionMode}
           onAction={handleAction}
@@ -366,7 +367,7 @@ export function BoardScreen() {
             player={p}
             stats={duel.stats[p.id]}
             active={p.id === active.id}
-            showLives={duel.settings.duelVariant === 'survival'}
+            showLives={duelHasLives(duel.settings)}
             compact
           />
         )}

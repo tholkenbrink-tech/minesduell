@@ -24,9 +24,25 @@ export interface DuelState {
   log: GameEvent[];
 }
 
+/**
+ * Whether a mistake (mine reveal / incorrect flag) has any effect on the turn
+ * or life count at all. True for streak always; for turn only when the
+ * "change turn on mistake" toggle is on. When false (turn mode, toggle off),
+ * mistakes are inert — the player always gets their full click allowance and
+ * this mode has no lives.
+ */
+export function duelMistakesMatter(settings: GameSettings): boolean {
+  return settings.duelVariant === 'streak' || (settings.duelVariant === 'turn' && settings.duelTurnChangeOnMistake);
+}
+
+/** Whether this match tracks a finite life/mistake budget (vs. unlimited mistakes). */
+export function duelHasLives(settings: GameSettings): boolean {
+  return duelMistakesMatter(settings) && settings.duelMistakeLimit.mode === 'limited';
+}
+
 export function createDuelMatch(settings: GameSettings, players: Player[], seed: number): DuelState {
   const board = createEmptyBoard(settings.board.width, settings.board.height, settings.board.mines, seed);
-  const lives = settings.duelVariant === 'survival' ? 3 : Infinity;
+  const lives = duelHasLives(settings) ? settings.duelMistakeLimit.count : Infinity;
   const stats: Record<string, PlayerStats> = {};
   for (const p of players) stats[p.id] = createPlayerStats(p.id, lives);
   return {
@@ -94,8 +110,12 @@ function endTurn(state: DuelState, events: GameEvent[]): void {
   const player = activePlayer(state);
   state.stats[player.id].turnDurationsMs.push(Date.now() - state.turnStartedAt);
   const alive = state.players.filter((p) => !state.stats[p.id].eliminated);
-  if (alive.length <= 1 && state.settings.duelVariant === 'survival') {
-    finishGame(state, events);
+  // Only a finite mistake limit ever eliminates a player, so this only fires
+  // when that's in play — the sole survivor wins outright, no tie-break needed.
+  if (alive.length <= 1) {
+    state.status = 'completed';
+    state.winnerId = alive[0]?.id ?? null;
+    events.push({ type: 'GAME_COMPLETED', playerId: state.winnerId ?? undefined });
     return;
   }
   state.activePlayerIndex = nextAlivePlayerIndex(state, state.activePlayerIndex);
@@ -104,9 +124,10 @@ function endTurn(state: DuelState, events: GameEvent[]): void {
   events.push({ type: 'TURN_ENDED', playerId: player.id });
 }
 
-function loseLife(state: DuelState, playerId: string, events: GameEvent[]): void {
-  if (state.settings.duelVariant !== 'survival') return;
+/** Decrements a life when this match has a finite budget; no-op otherwise (unlimited mistakes). */
+function decrementLife(state: DuelState, playerId: string, events: GameEvent[]): void {
   const s = state.stats[playerId];
+  if (s.lives === Infinity) return;
   s.lives -= 1;
   events.push({ type: 'LIFE_LOST', playerId, data: { livesRemaining: s.lives } });
   if (s.lives <= 0 && !s.eliminated) {
@@ -135,26 +156,26 @@ export function applyDuelReveal(state: DuelState, pos: Position): DuelActionResu
   state.turnActionsCount += 1;
 
   let turnEnds = false;
+  const mistakesMatter = duelMistakesMatter(state.settings);
 
   if (result.hitMine) {
     // A detonated mine is final — commit the tile so it can never be
     // un-revealed or re-marked by a later player.
     state.board.cells[pos.y][pos.x].committed = true;
-    // Hitting a mine is a mistake — it always ends the turn (and costs a life
-    // in the survival variant). This is one of the only two ways to lose a turn.
     stats.minesTriggered += 1;
     stats.currentStreak = 0;
-    loseLife(state, player.id, events);
-    turnEnds = true;
+    // Hitting a mine is a mistake. In streak, and in turn mode with "change
+    // turn on mistake" on, it always ends the turn (and costs a life when a
+    // mistake limit is configured). Otherwise it's inert — see duelMistakesMatter.
+    if (mistakesMatter) {
+      turnEnds = true;
+      decrementLife(state, player.id, events);
+    }
   } else if (result.newlyRevealedSafe.length > 0) {
-    // A correct reveal. In the streak and survival variants the active player
-    // keeps their turn on every correct move and only loses it on a mistake
-    // (revealing a mine or flagging a safe tile). The turn is NOT passed here.
+    // A correct reveal. The active player keeps their turn on every correct
+    // move and only loses it on a mistake. The turn is NOT passed here.
     stats.safeCellsRevealed += result.newlyRevealedSafe.length;
   }
-
-  // Only the classic variant passes the turn on every completed action.
-  if (state.settings.duelVariant === 'classic') turnEnds = true;
 
   if (
     state.settings.duelMaxActionsPerTurn > 0 &&
@@ -189,7 +210,8 @@ export function applyDuelFlag(state: DuelState, pos: Position): DuelActionResult
   events.push(...result.events);
   state.turnActionsCount += 1;
 
-  let turnEnds = state.settings.duelVariant === 'classic';
+  let turnEnds = false;
+  const mistakesMatter = duelMistakesMatter(state.settings);
 
   if (result.correct === true) {
     // A correct flag is final the moment it scores — commit the tile so no
@@ -201,14 +223,17 @@ export function applyDuelFlag(state: DuelState, pos: Position): DuelActionResult
       stats.longestStreak = Math.max(stats.longestStreak, stats.currentStreak);
       state.scoredMinePositions.add(key);
     }
-    // Correct flag retains the turn (unless classic variant), and cannot be
-    // farmed by re-toggling: only counted once via scoredMinePositions above.
+    // Correct flag retains the turn, and cannot be farmed by re-toggling:
+    // only counted once via scoredMinePositions above.
   } else if (result.correct === false) {
-    // Flagging a safe tile is a mistake — ends the turn and breaks the streak.
+    // Flagging a safe tile is a mistake — breaks the streak, and (when
+    // mistakes matter for this variant/config) ends the turn and costs a life.
     stats.incorrectFlags += 1;
     stats.currentStreak = 0;
-    loseLife(state, player.id, events);
-    turnEnds = true;
+    if (mistakesMatter) {
+      turnEnds = true;
+      decrementLife(state, player.id, events);
+    }
   }
   // result.correct === null means a flag was removed; no scoring change, turn continues.
 
@@ -253,7 +278,7 @@ export function handleDuelTimerExpired(state: DuelState): DuelActionResult {
     state.winnerId = others[0]?.id ?? null;
     events.push({ type: 'GAME_COMPLETED', playerId: state.winnerId ?? undefined });
   } else if (behavior === 'elimination') {
-    loseLife(state, player.id, events);
+    decrementLife(state, player.id, events);
     if (state.status === 'playing') endTurn(state, events);
   } else {
     endTurn(state, events);

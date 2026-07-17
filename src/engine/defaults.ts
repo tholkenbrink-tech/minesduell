@@ -7,6 +7,11 @@ export function modeDisplayName(mode: GameMode): string {
   return 'Duell';
 }
 
+/** Default click/interaction budget for a fresh Turn-mode match. */
+export const DEFAULT_DUEL_TURN_CLICK_LIMIT = 10;
+/** Default total-mistakes budget when a player first switches mistake limiting on. */
+export const DEFAULT_DUEL_MISTAKE_LIMIT_COUNT = 3;
+
 const shared = {
   firstRevealSafe: true,
   sound: false,
@@ -29,6 +34,8 @@ export function defaultDuelSettings(): GameSettings {
     duelTarget: { type: 'complete-board' },
     duelTimer: { enabled: false, seconds: 15, behavior: 'pass-turn' },
     duelMaxActionsPerTurn: 0,
+    duelTurnChangeOnMistake: true,
+    duelMistakeLimit: { mode: 'unlimited', count: DEFAULT_DUEL_MISTAKE_LIMIT_COUNT },
     raceLives: 3,
     raceScoring: 'time',
     raceCompletionRule: 'reveal-all-safe',

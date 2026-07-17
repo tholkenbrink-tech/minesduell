@@ -4,7 +4,7 @@ import { usePrefsStore } from '../store/usePrefsStore';
 import { DIFFICULTY_PRESETS, type DifficultyPreset, type DeviceArrangement } from '../engine/types';
 import { arrangementDisabledReason, isArrangementCompatible } from '../engine/arrangement';
 import { validateBoardConfig } from '../engine/board';
-import { estimateDifficultyLabel, estimateDurationMinutes } from '../engine/defaults';
+import { estimateDifficultyLabel, estimateDurationMinutes, DEFAULT_DUEL_TURN_CLICK_LIMIT } from '../engine/defaults';
 import { Button, Card, NumberField, SegmentedControl, Toggle } from '../components/ui';
 
 const PRESET_OPTIONS: { value: DifficultyPreset; label: string }[] = [
@@ -140,14 +140,63 @@ export function GameConfigScreen() {
           <SegmentedControl
             ariaLabel="Duell variant"
             value={settings.duelVariant}
-            onChange={(v) => updateSettings({ duelVariant: v })}
+            onChange={(v) =>
+              updateSettings({
+                duelVariant: v,
+                ...(v === 'turn' && settings.duelMaxActionsPerTurn === 0
+                  ? { duelMaxActionsPerTurn: DEFAULT_DUEL_TURN_CLICK_LIMIT }
+                  : {}),
+              })
+            }
             options={[
               { value: 'streak', label: 'Streak' },
-              { value: 'classic', label: 'Classic' },
-              { value: 'survival', label: 'Survival' },
+              { value: 'turn', label: 'Turn' },
             ]}
-            columns={3}
+            columns={2}
           />
+          {settings.duelVariant === 'turn' && (
+            <div className="mt-3 flex flex-wrap items-end gap-3">
+              <NumberField
+                id="duel-turn-click-limit"
+                label="Clicks per turn"
+                min={1}
+                max={50}
+                value={settings.duelMaxActionsPerTurn || DEFAULT_DUEL_TURN_CLICK_LIMIT}
+                onChange={(v) => updateSettings({ duelMaxActionsPerTurn: v })}
+              />
+              <Toggle
+                checked={settings.duelTurnChangeOnMistake}
+                onChange={(v) => updateSettings({ duelTurnChangeOnMistake: v })}
+                label="Change turn on mistake"
+                description="Off: always play your full click count, and this mode has no lives."
+              />
+            </div>
+          )}
+          <div className="mt-3 flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium">Mistake limit</span>
+              <select
+                value={settings.duelMistakeLimit.mode}
+                onChange={(e) =>
+                  updateSettings({ duelMistakeLimit: { ...settings.duelMistakeLimit, mode: e.target.value as typeof settings.duelMistakeLimit.mode } })
+                }
+                className="focus-ring rounded-[var(--md-radius-sm)] border border-[var(--md-border)] bg-[var(--md-surface)] px-3 py-2"
+              >
+                <option value="unlimited">No limit — mistakes just pass the turn</option>
+                <option value="limited">Limited — round ends after N mistakes</option>
+              </select>
+            </label>
+            {settings.duelMistakeLimit.mode === 'limited' && (
+              <NumberField
+                id="duel-mistake-limit-count"
+                label="Mistakes"
+                min={1}
+                max={20}
+                value={settings.duelMistakeLimit.count}
+                onChange={(v) => updateSettings({ duelMistakeLimit: { ...settings.duelMistakeLimit, count: v } })}
+              />
+            )}
+          </div>
           <div className="mt-3 flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1 text-sm">
               <span className="font-medium">Target</span>
