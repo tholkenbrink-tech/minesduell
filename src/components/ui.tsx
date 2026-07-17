@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 
 export function Button({
@@ -139,6 +140,19 @@ export function NumberField({
   label: string;
   id: string;
 }) {
+  // While the field is being edited, it shows a local draft string instead of
+  // the parent's number. Without this, the controlled input snaps back to the
+  // old value the moment the user clears it — the "sticky 0 you can't delete".
+  const [draft, setDraft] = useState<string | null>(null);
+
+  const commitDraft = () => {
+    if (draft !== null && draft.trim() !== '') {
+      const num = Number(draft);
+      if (!Number.isNaN(num)) onChange(Math.min(max, Math.max(min, num)));
+    }
+    setDraft(null);
+  };
+
   return (
     <label htmlFor={id} className="flex flex-col gap-1 text-sm">
       <span className="font-medium">{label}</span>
@@ -147,17 +161,20 @@ export function NumberField({
         type="number"
         min={min}
         max={max}
-        value={value}
+        value={draft ?? String(value)}
         onChange={(e) => {
-          const input = e.target.value.trim();
-          if (input === '') {
-            // Allow empty input (user is clearing the field)
-            return;
-          }
+          const input = e.target.value;
+          setDraft(input);
+          // Propagate in-range values live so dependent UI (e.g. the mine cap
+          // hint) tracks typing; out-of-range drafts wait for blur to clamp.
           const num = Number(input);
-          if (!isNaN(num)) {
+          if (input.trim() !== '' && !Number.isNaN(num) && num >= min && num <= max) {
             onChange(num);
           }
+        }}
+        onBlur={commitDraft}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commitDraft();
         }}
         className="focus-ring rounded-[var(--md-radius-sm)] border border-[var(--md-border)] bg-[var(--md-surface)] px-3 py-2 text-[var(--md-text)]"
       />
