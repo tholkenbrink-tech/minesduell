@@ -49,10 +49,10 @@ export interface BoardConfig {
 }
 
 export const DIFFICULTY_PRESETS: Record<Exclude<DifficultyPreset, 'custom'>, BoardConfig> = {
-  easy: { width: 9, height: 9, mines: 10, preset: 'easy' },
-  medium: { width: 12, height: 16, mines: 30, preset: 'medium' },
-  hard: { width: 16, height: 22, mines: 60, preset: 'hard' },
-  extreme: { width: 20, height: 30, mines: 130, preset: 'extreme' },
+  easy: { width: 11, height: 13, mines: 20, preset: 'easy' },
+  medium: { width: 14, height: 18, mines: 50, preset: 'medium' },
+  hard: { width: 18, height: 26, mines: 95, preset: 'hard' },
+  extreme: { width: 22, height: 32, mines: 150, preset: 'extreme' },
 };
 
 export type PlayerTheme =
