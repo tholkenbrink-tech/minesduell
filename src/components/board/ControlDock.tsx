@@ -138,7 +138,15 @@ export function ControlDock({
     if (target && target !== anchor) onAnchorChange(slotIndex, target);
   }
 
-  const vertical = anchor === 'left' || anchor === 'right';
+  // The cluster wants to end up as a vertical strip when docked to the left/right
+  // edge. `rotation` is applied via CSS transform AFTER this layout is chosen, and
+  // a 90/270° rotation swaps the visual width/height axes — so when that swap is
+  // in play, the *pre-rotation* layout must be the opposite of the desired final
+  // shape, or the rotation silently cancels it back out (a vertical stack rotated
+  // 90/270° reads as a horizontal row again).
+  const wantsVerticalStrip = anchor === 'left' || anchor === 'right';
+  const rotationSwapsAxes = rotation === 90 || rotation === 270;
+  const vertical = wantsVerticalStrip !== rotationSwapsAxes;
 
   return (
     <div className="pointer-events-none absolute inset-0 z-20">

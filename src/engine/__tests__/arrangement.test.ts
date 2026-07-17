@@ -16,7 +16,10 @@ const ids = (n: number) => Array.from({ length: n }, (_, i) => `p${i}`);
 
 describe('arrangement — seat rotation map', () => {
   it('maps each side to its clockwise rotation', () => {
-    expect(SEAT_ROTATION).toEqual({ bottom: 0, right: 90, top: 180, left: 270 });
+    // A clockwise rotation carries the content's bottom edge to the left, so
+    // the left seat needs 90° (not 270°) to bring that edge to them, and the
+    // right seat needs 270° — the reverse of the seat's own screen-side name.
+    expect(SEAT_ROTATION).toEqual({ bottom: 0, right: 270, top: 180, left: 90 });
   });
 });
 
@@ -85,7 +88,7 @@ describe('arrangement — default seats', () => {
   it('rotates a four-player Table bottom → left → top → right', () => {
     const seats = defaultSeats('table', ids(4));
     expect(seats.map((s) => s.position)).toEqual(['bottom', 'left', 'top', 'right']);
-    expect(seats.map((s) => s.rotation)).toEqual([0, 270, 180, 90]);
+    expect(seats.map((s) => s.rotation)).toEqual([0, 90, 180, 270]);
   });
 
   it('seats a three-player Table on three sides, leaving one empty', () => {
@@ -114,9 +117,9 @@ describe('arrangement — active content rotation', () => {
     expect(activeContentRotation(seats, 'p1')).toBe(180);
   });
 
-  it('uses 0/270/180/90 for the four Table seats (bottom/left/top/right)', () => {
+  it('uses 0/90/180/270 for the four Table seats (bottom/left/top/right)', () => {
     const seats = defaultSeats('table', ids(4));
-    expect(['p0', 'p1', 'p2', 'p3'].map((id) => activeContentRotation(seats, id))).toEqual([0, 270, 180, 90]);
+    expect(['p0', 'p1', 'p2', 'p3'].map((id) => activeContentRotation(seats, id))).toEqual([0, 90, 180, 270]);
   });
 
   it('falls back to 0° for an unknown active player', () => {

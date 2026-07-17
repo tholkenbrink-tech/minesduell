@@ -66,12 +66,16 @@ export function resolveControlAnchor(
 }
 
 /** Clockwise rotation (deg) applied to a seat's player-facing content so it
- *  reads upright from that physical side of the device. */
+ *  reads upright from that physical side of the device. A clockwise rotation
+ *  carries the content's bottom edge to the left, so the seat sitting at the
+ *  device's left edge needs 90° (not 270°) to bring that edge to them, and the
+ *  right-seated player needs 270° (not 90°) — the reverse of the seat's own
+ *  screen-side name. */
 export const SEAT_ROTATION: Record<SeatPosition, SeatRotation> = {
   bottom: 0,
-  right: 90,
+  right: 270,
   top: 180,
-  left: 270,
+  left: 90,
 };
 
 export interface PlayerSeat {
