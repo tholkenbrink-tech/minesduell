@@ -257,12 +257,14 @@ function ActionToggle({
         minHeight: 44,
         minWidth: 44,
         padding: '4px 6px',
-        background: 'linear-gradient(120deg, var(--md-neon-pink), #8b5cf6)',
-        boxShadow: '0 0 12px color-mix(in srgb, var(--md-neon-pink) 45%, transparent)',
+        // Neutral track — only the ACTIVE side gets an accent fill below, so
+        // exactly one side is ever colored and the state reads at a glance.
+        background: 'rgba(255,255,255,0.06)',
+        border: '1px solid rgba(255,255,255,0.12)',
       }}
     >
       <div className={`flex gap-1 ${vertical ? 'flex-col' : ''}`}>
-        {/* Reveal icon */}
+        {/* Reveal icon — filled neon-cyan only while active (matches the board's Reveal tint). */}
         <button
           type="button"
           onClick={(e) => {
@@ -270,20 +272,22 @@ function ActionToggle({
             setActionMode('reveal');
           }}
           aria-label="Select Reveal"
-          className="flex items-center justify-center rounded transition-colors"
+          className="flex items-center justify-center rounded-full transition-colors"
           style={{
             minHeight: 36,
             minWidth: 36,
-            background:
+            background: actionMode === 'reveal' ? 'var(--md-neon-cyan)' : 'transparent',
+            boxShadow:
               actionMode === 'reveal'
-                ? 'rgba(255,255,255,0.2)'
-                : 'rgba(255,255,255,0.08)',
-            color: '#fff',
+                ? '0 0 10px color-mix(in srgb, var(--md-neon-cyan) 55%, transparent)'
+                : 'none',
+            color: actionMode === 'reveal' ? 'var(--md-accent-contrast)' : 'var(--md-neon-text-muted)',
+            opacity: actionMode === 'reveal' ? 1 : 0.7,
           }}
         >
           <Icon name="reveal" size={17} />
         </button>
-        {/* Mark/Flag icon */}
+        {/* Mark/Flag icon — filled neon-pink only while active (matches the board's Mark tint). */}
         <button
           type="button"
           onClick={(e) => {
@@ -291,15 +295,17 @@ function ActionToggle({
             setActionMode('flag');
           }}
           aria-label="Select Flag"
-          className="flex items-center justify-center rounded transition-colors"
+          className="flex items-center justify-center rounded-full transition-colors"
           style={{
             minHeight: 36,
             minWidth: 36,
-            background:
+            background: actionMode === 'flag' ? 'var(--md-neon-pink)' : 'transparent',
+            boxShadow:
               actionMode === 'flag'
-                ? 'rgba(255,255,255,0.2)'
-                : 'rgba(255,255,255,0.08)',
-            color: '#fff',
+                ? '0 0 10px color-mix(in srgb, var(--md-neon-pink) 55%, transparent)'
+                : 'none',
+            color: actionMode === 'flag' ? '#fff' : 'var(--md-neon-text-muted)',
+            opacity: actionMode === 'flag' ? 1 : 0.7,
           }}
         >
           <Icon name="flag" size={17} />
