@@ -281,7 +281,11 @@ export function handleDuelTimerExpired(state: DuelState): DuelActionResult {
   const player = activePlayer(state);
   events.push({ type: 'TIMER_EXPIRED', playerId: player.id });
 
-  const behavior = state.settings.duelTimer.behavior;
+  // The expiry behavior is only configurable for Streak's optional pressure
+  // timer. In Turn by Time the countdown simply IS the turn length, so expiry
+  // always passes the turn — a stale persisted behavior (e.g. sudden-death set
+  // back when the variant was Streak) must not end the game.
+  const behavior = state.settings.duelVariant === 'streak' ? state.settings.duelTimer.behavior : 'pass-turn';
   if (behavior === 'sudden-death') {
     const others = state.players.filter((p) => p.id !== player.id);
     state.status = 'completed';

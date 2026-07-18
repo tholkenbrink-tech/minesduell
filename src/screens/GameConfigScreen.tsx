@@ -245,37 +245,41 @@ export function GameConfigScreen() {
           {invalidDuelTarget && (
             <p className="text-sm text-[var(--md-danger)]">Target can't exceed the {settings.board.mines} mines on the board.</p>
           )}
-          <div className="mt-3 flex flex-wrap items-end gap-3">
-            <Toggle
-              checked={settings.duelTimer.enabled}
-              onChange={(v) => updateSettings({ duelTimer: { ...settings.duelTimer, enabled: v } })}
-              label="Turn timer"
-            />
-            {settings.duelTimer.enabled && (
-              <>
-                <NumberField
-                  id="duel-timer-seconds"
-                  label="Seconds"
-                  min={3}
-                  max={120}
-                  value={settings.duelTimer.seconds}
-                  onChange={(v) => updateSettings({ duelTimer: { ...settings.duelTimer, seconds: v } })}
-                />
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="font-medium">On expiry</span>
-                  <select
-                    value={settings.duelTimer.behavior}
-                    onChange={(e) => updateSettings({ duelTimer: { ...settings.duelTimer, behavior: e.target.value as typeof settings.duelTimer.behavior } })}
-                    className="focus-ring rounded-[var(--md-radius-sm)] border border-[var(--md-border)] bg-[var(--md-surface)] px-3 py-2"
-                  >
-                    <option value="pass-turn">Pass turn</option>
-                    <option value="elimination">Lose a life</option>
-                    <option value="sudden-death">Sudden death</option>
-                  </select>
-                </label>
-              </>
-            )}
-          </div>
+          {/* The optional pressure timer only makes sense for Streak — in the
+              turn variants the turn length is already defined by moves/time. */}
+          {settings.duelVariant === 'streak' && (
+            <div className="mt-3 flex flex-wrap items-end gap-3">
+              <Toggle
+                checked={settings.duelTimer.enabled}
+                onChange={(v) => updateSettings({ duelTimer: { ...settings.duelTimer, enabled: v } })}
+                label="Turn timer"
+              />
+              {settings.duelTimer.enabled && (
+                <>
+                  <NumberField
+                    id="duel-timer-seconds"
+                    label="Seconds"
+                    min={3}
+                    max={120}
+                    value={settings.duelTimer.seconds}
+                    onChange={(v) => updateSettings({ duelTimer: { ...settings.duelTimer, seconds: v } })}
+                  />
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="font-medium">On expiry</span>
+                    <select
+                      value={settings.duelTimer.behavior}
+                      onChange={(e) => updateSettings({ duelTimer: { ...settings.duelTimer, behavior: e.target.value as typeof settings.duelTimer.behavior } })}
+                      className="focus-ring rounded-[var(--md-radius-sm)] border border-[var(--md-border)] bg-[var(--md-surface)] px-3 py-2"
+                    >
+                      <option value="pass-turn">Pass turn</option>
+                      <option value="elimination">Lose a life</option>
+                      <option value="sudden-death">Sudden death</option>
+                    </select>
+                  </label>
+                </>
+              )}
+            </div>
+          )}
         </Card>
       )}
 

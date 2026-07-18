@@ -375,4 +375,19 @@ describe('duel mode', () => {
     expect(state.status).toBe('completed');
     expect(state.winnerId).not.toBe(activeId);
   });
+
+  it('turn-by-time expiry always passes the turn, ignoring a stale streak behavior', () => {
+    // A persisted "sudden-death" from a previous Streak config must not end
+    // the game once the variant is Turn by Time — expiry just rotates turns.
+    const settings = {
+      ...defaultDuelSettings(),
+      duelVariant: 'turn-by-time' as const,
+      duelTimer: { enabled: false, seconds: 10, behavior: 'sudden-death' as const },
+    };
+    const state = createDuelMatch(settings, makePlayers(2), 11);
+    const activeBefore = state.activePlayerIndex;
+    handleDuelTimerExpired(state);
+    expect(state.status).toBe('playing');
+    expect(state.activePlayerIndex).not.toBe(activeBefore);
+  });
 });
