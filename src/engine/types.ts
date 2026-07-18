@@ -48,11 +48,13 @@ export interface BoardConfig {
   preset: DifficultyPreset;
 }
 
+// Square boards whose difficulty is driven by mine density (mistake pressure),
+// not by how long the board takes to clear — density rises with every level.
 export const DIFFICULTY_PRESETS: Record<Exclude<DifficultyPreset, 'custom'>, BoardConfig> = {
-  easy: { width: 11, height: 13, mines: 20, preset: 'easy' },
-  medium: { width: 14, height: 18, mines: 50, preset: 'medium' },
-  hard: { width: 18, height: 26, mines: 95, preset: 'hard' },
-  extreme: { width: 22, height: 32, mines: 150, preset: 'extreme' },
+  easy: { width: 20, height: 20, mines: 60, preset: 'easy' }, // 15%
+  medium: { width: 25, height: 25, mines: 150, preset: 'medium' }, // 24%
+  hard: { width: 30, height: 30, mines: 250, preset: 'hard' }, // ~28%
+  extreme: { width: 50, height: 50, mines: 750, preset: 'extreme' }, // 30%
 };
 
 export type PlayerTheme =

@@ -80,7 +80,7 @@ export function GameConfigScreen() {
             id="board-width"
             label="Width"
             min={6}
-            max={50}
+            max={75}
             value={settings.board.width}
             onChange={(v) => updateSettings({ board: { ...settings.board, width: v, preset: 'custom' } })}
           />
@@ -88,7 +88,7 @@ export function GameConfigScreen() {
             id="board-height"
             label="Height"
             min={6}
-            max={50}
+            max={75}
             value={settings.board.height}
             onChange={(v) => updateSettings({ board: { ...settings.board, height: v, preset: 'custom' } })}
           />

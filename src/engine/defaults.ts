@@ -1,4 +1,5 @@
 import type { GameMode, GameSettings } from './types';
+import { DIFFICULTY_PRESETS } from './types';
 
 /** Human-readable name for a mode, used in headings/labels. */
 export function modeDisplayName(mode: GameMode): string {
@@ -27,11 +28,11 @@ const shared = {
 export function defaultDuelSettings(): GameSettings {
   return {
     mode: 'duel',
-    board: { width: 12, height: 16, mines: 30, preset: 'medium' },
+    board: { ...DIFFICULTY_PRESETS.medium },
     arrangement: 'side-by-side',
     ...shared,
     duelVariant: 'streak',
-    duelTarget: { type: 'complete-board' },
+    duelTarget: { type: 'majority' },
     duelTimer: { enabled: false, seconds: 15, behavior: 'pass-turn' },
     duelMaxActionsPerTurn: 0,
     duelTurnChangeOnMistake: true,
@@ -55,7 +56,7 @@ export function defaultRaceSettings(): GameSettings {
   return {
     ...defaultDuelSettings(),
     mode: 'race',
-    board: { width: 12, height: 16, mines: 30, preset: 'medium' },
+    board: { ...DIFFICULTY_PRESETS.medium },
     raceLives: 3,
     raceScoring: 'time',
     raceCompletionRule: 'reveal-all-safe',
@@ -67,7 +68,7 @@ export function defaultCoopSettings(): GameSettings {
   return {
     ...defaultDuelSettings(),
     mode: 'coop',
-    board: { width: 14, height: 18, mines: 45, preset: 'medium' },
+    board: { ...DIFFICULTY_PRESETS.medium },
     coopLives: 3,
     coopLifeCap: 5,
     coopTarget: { type: 'complete-board' },
@@ -86,16 +87,20 @@ export function defaultSettingsForMode(mode: GameMode): GameSettings {
 }
 
 export function estimateDurationMinutes(settings: GameSettings, playerCount: number): number {
-  const totalCells = settings.board.width * settings.board.height;
-  const base = totalCells / 40; // rough cells-per-minute solving rate for a casual group
+  // Rounds are decided by mines (flags scored, mistakes made), not by clearing
+  // every cell — so the estimate scales with the mine count, capped because
+  // huge boards end via targets/mistakes long before they're exhausted.
+  const base = Math.min(settings.board.mines / 10, 45);
   const modeFactor = settings.mode === 'race' ? playerCount * 0.9 : settings.mode === 'coop' ? 1.3 : 1;
   return Math.max(2, Math.round(base * modeFactor));
 }
 
+// Thresholds sit between the preset densities (15% / 24% / 28% / 30%) so each
+// preset maps back to its own label and custom boards land on the nearest tier.
 export function estimateDifficultyLabel(settings: GameSettings): string {
   const density = settings.board.mines / (settings.board.width * settings.board.height);
-  if (density < 0.13) return 'Easy';
-  if (density < 0.18) return 'Medium';
-  if (density < 0.23) return 'Hard';
+  if (density < 0.195) return 'Easy';
+  if (density < 0.26) return 'Medium';
+  if (density < 0.29) return 'Hard';
   return 'Extreme';
 }
