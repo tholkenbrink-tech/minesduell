@@ -385,11 +385,11 @@ export function BoardScreen() {
             {duel.settings.duelMaxActionsPerTurn - duel.turnActionsCount} moves left
           </span>
         )}
-        {duel.settings.duelTimer.enabled && (duel.settings.duelVariant === 'turn-by-time' || duel.settings.duelVariant === 'streak') && (
+        {(duel.settings.duelVariant === 'turn-by-time' || (duel.settings.duelTimer.enabled && duel.settings.duelVariant === 'streak')) && (
           <div className="w-24 shrink-0 sm:w-28">
             <TurnTimer
-              // Reset on every action (turnActionsCount) as well as on turn change
-              // (activePlayerIndex) — an actively-playing streak never times out.
+              // Turn by Time: timer always shown as it IS the turn duration mechanism.
+              // Streak: timer shown only if explicitly enabled.
               seconds={duel.settings.duelTimer.seconds}
               resetKey={`${duel.activePlayerIndex}-${duel.turnActionsCount}`}
               paused={paused || turnTransition.active}
