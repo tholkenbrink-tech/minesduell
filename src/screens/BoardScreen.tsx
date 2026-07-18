@@ -47,7 +47,6 @@ export function BoardScreen() {
   const giveUpRace = useMatchStore((s) => s.giveUpRace);
   const peekAt = useMatchStore((s) => s.peekAt);
   const dismissPeek = useMatchStore((s) => s.dismissPeek);
-  const feed = useMatchStore((s) => s.feed);
   const lastEvents = useMatchStore((s) => s.lastEvents);
   const tileSizePref = usePrefsStore((s) => s.tileSize);
   const controlAnchors = usePrefsStore((s) => s.controlAnchors);
@@ -176,7 +175,6 @@ export function BoardScreen() {
             overlay={buildDock(coop.activePlayerIndex)}
             disabled={paused || turnTransition.active || Boolean(peekResolved)}
             tileSizePref={tileSizePref}
-            feed={feed}
             mistakePos={mistakePosFromEvents(lastEvents)}
             timer={
               settings.coopTeamTimerSeconds > 0
@@ -321,7 +319,6 @@ export function BoardScreen() {
           overlay={buildDock(duel.activePlayerIndex)}
           disabled={paused || turnTransition.active}
           tileSizePref={tileSizePref}
-          feed={feed}
           mistakePos={mistakePosFromEvents(lastEvents)}
           timer={
             // Same visibility rule as the side-by-side info strip: Turn by Time

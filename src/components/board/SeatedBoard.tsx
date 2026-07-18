@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { ActionMode, Board, Player, PlayerStats, Position } from '../../engine/types';
 import type { PlayerSeat, SeatPosition, SeatRotation } from '../../engine/arrangement';
 import { SEAT_ROTATION, emptyTableSide, seatForPlayer } from '../../engine/arrangement';
-import { useMatchStore, type FeedEvent } from '../../store/useMatchStore';
+import { useMatchStore } from '../../store/useMatchStore';
 import { BoardView } from './BoardView';
 import { TurnTimer } from '../hud/TurnTimer';
 import { PlayerBadge } from '../PlayerBadge';
@@ -40,7 +40,6 @@ export interface SeatedBoardProps {
   onAction: (kind: 'reveal' | 'flag', pos: Position) => void;
   disabled: boolean;
   tileSizePref: 'compact' | 'comfortable' | 'large';
-  feed: FeedEvent[];
   mistakePos: Position | null;
   timer: SeatedTimerConfig | null;
   /** The movable Reveal/Mark control dock, laid over the play field. It already
@@ -102,7 +101,6 @@ function FaceToFaceLayout({
   activePlayerIndex,
   showLives,
   minesLeft,
-  feed,
   timer,
   boardEl,
 }: Omit<SeatedBoardProps, 'board'> & { boardEl: ReactNode }) {
@@ -139,13 +137,11 @@ function FaceToFaceLayout({
         timerSlot={timerFor(players.findIndex((p) => p.id === top.id))}
         hasTimer={Boolean(timer)}
       />
-      {wide && <EventLog feed={feed} players={players} flip />}
 
       {/* The Reveal/Mark controls live in the movable dock laid over the board
           (props.overlay), docked by default to the active player's side. */}
       <div className="relative mx-2.5 min-h-0 flex-1">{boardEl}</div>
 
-      {wide && <EventLog feed={feed} players={players} />}
       <NeonHudRow
         player={bottom}
         stats={stats[bottom.id]}
@@ -581,76 +577,6 @@ function EmptySeatBadge({ compact = false }: { compact?: boolean }) {
       <span className="md-display font-semibold text-[var(--md-neon-text-muted)]" style={{ fontSize: 11 }}>
         Empty seat
       </span>
-    </div>
-  );
-}
-
-// ---- Feed / event chips (shared board feedback) ---------------------------
-
-interface FeedCopy {
-  icon: '✓' | '✕';
-  text: string;
-  tone: 'correct' | 'wrong';
-  dotColor: string;
-}
-
-function feedCopy(fe: FeedEvent, players: Player[]): FeedCopy {
-  const player = players.find((p) => p.id === fe.playerId);
-  const name = player?.name ?? 'Someone';
-  const dotColor = player ? THEME_VAR[player.theme] : 'var(--md-neon-text-muted)';
-  switch (fe.kind) {
-    case 'flag-correct':
-      return { icon: '✓', text: `${name} flagged correctly`, tone: 'correct', dotColor };
-    case 'cascade':
-      return { icon: '✓', text: `${name} cleared ${fe.tileCount ?? 0} tiles`, tone: 'correct', dotColor };
-    case 'flag-wrong':
-      return { icon: '✕', text: `${name} misflagged`, tone: 'wrong', dotColor };
-    case 'mine-hit':
-      return { icon: '✕', text: `${name} hit a mine`, tone: 'wrong', dotColor };
-  }
-}
-
-function FeedChip({
-  copy,
-  size,
-  rotation,
-  animate,
-}: {
-  copy: FeedCopy;
-  size: number;
-  rotation?: number;
-  animate?: boolean;
-}) {
-  return (
-    <div
-      className={`md-feed-chip ${copy.tone === 'correct' ? 'md-feed-correct' : 'md-feed-wrong'} ${animate ? 'md-chip-in' : ''}`}
-      style={{ transform: rotation ? `rotate(${rotation}deg)` : undefined, fontSize: size, fontWeight: 700 }}
-    >
-      <span className="md-feed-dot" style={{ background: copy.dotColor }} />
-      {copy.icon} {copy.text}
-    </div>
-  );
-}
-
-/** Persistent last-3 mirrored log (tablet, face-to-face). Rotated per band. */
-function EventLog({ feed, players, flip }: { feed: FeedEvent[]; players: Player[]; flip?: boolean }) {
-  if (feed.length === 0) {
-    return <div className="h-6" aria-hidden />;
-  }
-  const opacities = [1, 0.72, 0.44];
-  return (
-    <div
-      className="flex flex-col gap-1.5 px-6 pb-1"
-      style={{ transform: flip ? 'rotate(180deg)' : undefined, alignItems: 'flex-start' }}
-    >
-      {feed.slice(0, 3).map((fe, i) => {
-        const copy = feedCopy(fe, players);
-        return (
-          <div key={fe.id} style={{ opacity: opacities[i] ?? 0.44 }}>
-            <FeedChip copy={copy} size={11.5} />
-          </div>
-        );
-      })}
     </div>
   );
 }
