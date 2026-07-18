@@ -9,6 +9,7 @@ export function PlayerStatusCard({
   orientationDeg = 0,
   showLives,
   compact,
+  scoreTarget,
 }: {
   player: Player;
   stats: PlayerStats;
@@ -16,6 +17,8 @@ export function PlayerStatusCard({
   orientationDeg?: 0 | 180;
   showLives: boolean;
   compact?: boolean;
+  /** Flags needed to win (duel majority / first-to targets); shown as scored/target. */
+  scoreTarget?: number | null;
 }) {
   return (
     <div
@@ -30,6 +33,7 @@ export function PlayerStatusCard({
         <p className="flex items-center gap-2 text-[11px] leading-tight text-[var(--md-text-muted)]">
           <span className="inline-flex items-center gap-0.5">
             <Icon name="diamond" size={11} /> {stats.minesDetected}
+            {scoreTarget != null && <span className="opacity-70">/{scoreTarget}</span>}
           </span>
           {stats.eliminated ? (
             <span className="text-[var(--md-danger)]">out</span>

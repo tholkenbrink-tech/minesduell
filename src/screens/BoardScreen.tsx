@@ -4,7 +4,7 @@ import { usePrefsStore } from '../store/usePrefsStore';
 import { countRemainingMines } from '../engine/board';
 import type { GameEvent, Position } from '../engine/types';
 import type { DuelState } from '../engine/duel';
-import { duelHasLives } from '../engine/duel';
+import { duelHasLives, duelTargetCount } from '../engine/duel';
 import type { RaceState } from '../engine/race';
 import type { CoopState } from '../engine/coop';
 import { BoardView } from '../components/board/BoardView';
@@ -298,6 +298,9 @@ export function BoardScreen() {
 
   const duel = match as DuelState;
   const active = players[duel.activePlayerIndex];
+  // Flags needed to win — meaningful for majority / first-to targets only;
+  // complete-board has no fixed winning count, so pills show a plain score.
+  const duelScoreTarget = duel.settings.duelTarget.type === 'complete-board' ? null : duelTargetCount(duel);
 
   if (seatedVariant) {
     return (
@@ -314,6 +317,7 @@ export function BoardScreen() {
           activePlayerIndex={duel.activePlayerIndex}
           showLives={duelHasLives(duel.settings)}
           minesLeft={countRemainingMines(duel.board)}
+          scoreTarget={duelScoreTarget}
           actionMode={actionMode}
           onAction={handleAction}
           overlay={buildDock(duel.activePlayerIndex)}
@@ -370,6 +374,7 @@ export function BoardScreen() {
             active={p.id === active.id}
             showLives={duelHasLives(duel.settings)}
             compact
+            scoreTarget={duelScoreTarget}
           />
         )}
       />

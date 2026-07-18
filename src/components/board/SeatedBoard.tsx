@@ -42,6 +42,8 @@ export interface SeatedBoardProps {
   tileSizePref: 'compact' | 'comfortable' | 'large';
   mistakePos: Position | null;
   timer: SeatedTimerConfig | null;
+  /** Flags needed to win (duel majority / first-to). Shown as scored/target in seat pills. */
+  scoreTarget?: number | null;
   /** The movable Reveal/Mark control dock, laid over the play field. It already
    *  carries the active seat's rotation, so this shell only positions the board
    *  and HUD around it. */
@@ -102,6 +104,7 @@ function FaceToFaceLayout({
   showLives,
   minesLeft,
   timer,
+  scoreTarget,
   boardEl,
 }: Omit<SeatedBoardProps, 'board'> & { boardEl: ReactNode }) {
   const wide = useIsWide();
@@ -136,6 +139,7 @@ function FaceToFaceLayout({
         flip
         timerSlot={timerFor(players.findIndex((p) => p.id === top.id))}
         hasTimer={Boolean(timer)}
+        scoreTarget={scoreTarget}
       />
 
       {/* The Reveal/Mark controls live in the movable dock laid over the board
@@ -151,6 +155,7 @@ function FaceToFaceLayout({
         wide={wide}
         timerSlot={timerFor(players.findIndex((p) => p.id === bottom.id))}
         hasTimer={Boolean(timer)}
+        scoreTarget={scoreTarget}
       />
     </div>
   );
@@ -170,6 +175,7 @@ function TableLayout({
   showLives,
   minesLeft,
   timer,
+  scoreTarget,
   boardEl,
 }: Omit<SeatedBoardProps, 'board'> & { boardEl: ReactNode }) {
   const wide = useIsWide();
@@ -211,7 +217,7 @@ function TableLayout({
     return (
       <div className="flex items-center justify-center p-1.5">
         <RotatedGroup rotation={rotation} className="flex flex-col items-center gap-1.5">
-          <SeatChip player={player} stats={stats[player.id]} active={active} showLives={showLives} minesLeft={minesLeft} />
+          <SeatChip player={player} stats={stats[player.id]} active={active} showLives={showLives} minesLeft={minesLeft} scoreTarget={scoreTarget} />
           {/* Reveal/Mark controls are provided by the movable dock over the board. */}
           {active && timerSlot(pos) && (
             <div className="flex w-28 items-center gap-1.5">
@@ -281,6 +287,7 @@ function TableLayout({
             rotation={SEAT_ROTATION[s.position]}
             minesLeft={active ? minesLeft : undefined}
             timerNode={active ? timerSlot(s.position) : null}
+            scoreTarget={scoreTarget}
           />
         );
       })}
@@ -325,6 +332,7 @@ function NeonHudRow({
   flip,
   timerSlot,
   hasTimer,
+  scoreTarget,
 }: {
   player: Player;
   stats: PlayerStats;
@@ -335,6 +343,7 @@ function NeonHudRow({
   flip?: boolean;
   timerSlot: ReactNode;
   hasTimer?: boolean;
+  scoreTarget?: number | null;
 }) {
   const color = THEME_VAR[player.theme];
   const avatar = wide ? 32 : 24;
@@ -372,6 +381,7 @@ function NeonHudRow({
             >
               <span className="inline-flex items-center gap-0.5">
                 <Icon name="diamond" size={wide ? 12 : 10} /> {stats.minesDetected}
+                {scoreTarget != null && <span className="opacity-70">/{scoreTarget}</span>}
               </span>
               {stats.eliminated ? (
                 <span className="text-[var(--md-neon-red)]">out</span>
@@ -425,12 +435,14 @@ function SeatChip({
   active,
   showLives,
   minesLeft,
+  scoreTarget,
 }: {
   player: Player;
   stats: PlayerStats;
   active: boolean;
   showLives: boolean;
   minesLeft: number;
+  scoreTarget?: number | null;
 }) {
   const color = THEME_VAR[player.theme];
   const textColor = active ? 'var(--md-accent-contrast)' : 'var(--md-neon-text)';
@@ -455,6 +467,7 @@ function SeatChip({
         <div className="md-display flex gap-2 whitespace-nowrap font-semibold" style={{ fontSize: 10, color: mutedColor }}>
           <span className="inline-flex items-center gap-0.5">
             <Icon name="diamond" size={10} /> {stats.minesDetected}
+            {scoreTarget != null && <span className="opacity-70">/{scoreTarget}</span>}
           </span>
           {stats.eliminated ? (
             <span className="text-[var(--md-neon-red)]">out</span>
@@ -488,6 +501,7 @@ function CornerIndicator({
   rotation,
   minesLeft,
   timerNode,
+  scoreTarget,
 }: {
   player: Player;
   stats: PlayerStats;
@@ -497,6 +511,7 @@ function CornerIndicator({
   rotation: SeatRotation;
   minesLeft?: number;
   timerNode?: ReactNode;
+  scoreTarget?: number | null;
 }) {
   const color = THEME_VAR[player.theme];
   const textColor = active ? 'var(--md-accent-contrast)' : 'var(--md-neon-text)';
@@ -522,6 +537,7 @@ function CornerIndicator({
             <span className="inline-flex items-center gap-0.5">
               <Icon name="diamond" size={9} />
               {stats.minesDetected}
+              {scoreTarget != null && <span className="opacity-70">/{scoreTarget}</span>}
             </span>
             {showLives && !stats.eliminated && Number.isFinite(stats.lives) && (
               <span className="inline-flex items-center gap-0.5">
