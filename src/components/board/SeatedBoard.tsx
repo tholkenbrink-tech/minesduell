@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { ActionMode, Board, Player, PlayerStats, Position } from '../../engine/types';
 import type { PlayerSeat, SeatPosition, SeatRotation } from '../../engine/arrangement';
 import { SEAT_ROTATION, emptyTableSide, seatForPlayer } from '../../engine/arrangement';
-import type { FeedEvent } from '../../store/useMatchStore';
+import { useMatchStore, type FeedEvent } from '../../store/useMatchStore';
 import { BoardView } from './BoardView';
 import { TurnTimer } from '../hud/TurnTimer';
 import { PlayerBadge } from '../PlayerBadge';
@@ -137,6 +137,7 @@ function FaceToFaceLayout({
         wide={wide}
         flip
         timerSlot={timerFor(players.findIndex((p) => p.id === top.id))}
+        hasTimer={Boolean(timer)}
       />
       {wide && <EventLog feed={feed} players={players} flip />}
 
@@ -153,6 +154,7 @@ function FaceToFaceLayout({
         minesLeft={minesLeft}
         wide={wide}
         timerSlot={timerFor(players.findIndex((p) => p.id === bottom.id))}
+        hasTimer={Boolean(timer)}
       />
     </div>
   );
@@ -215,7 +217,12 @@ function TableLayout({
         <RotatedGroup rotation={rotation} className="flex flex-col items-center gap-1.5">
           <SeatChip player={player} stats={stats[player.id]} active={active} showLives={showLives} minesLeft={minesLeft} />
           {/* Reveal/Mark controls are provided by the movable dock over the board. */}
-          {active && timerSlot(pos) && <div className="w-28">{timerSlot(pos)}</div>}
+          {active && timerSlot(pos) && (
+            <div className="flex w-28 items-center gap-1.5">
+              <div className="min-w-0 flex-1">{timerSlot(pos)}</div>
+              <TimerSecondsReadout wide={false} />
+            </div>
+          )}
         </RotatedGroup>
       </div>
     );
@@ -321,6 +328,7 @@ function NeonHudRow({
   wide,
   flip,
   timerSlot,
+  hasTimer,
 }: {
   player: Player;
   stats: PlayerStats;
@@ -330,6 +338,7 @@ function NeonHudRow({
   wide: boolean;
   flip?: boolean;
   timerSlot: ReactNode;
+  hasTimer?: boolean;
 }) {
   const color = THEME_VAR[player.theme];
   const avatar = wide ? 32 : 24;
@@ -381,16 +390,35 @@ function NeonHudRow({
             </div>
           </div>
         </div>
-        <span
-          className="md-display inline-flex items-center gap-1 font-bold text-[var(--md-neon-text)]"
-          style={{ fontSize: wide ? 14 : 11 }}
-        >
-          <Icon name="bombMine" size={wide ? 14 : 12} /> {minesLeft}
-          {wide ? ' left' : ''}
+        <span className="flex shrink-0 items-center gap-2.5">
+          <span
+            className="md-display inline-flex items-center gap-1 font-bold text-[var(--md-neon-text)]"
+            style={{ fontSize: wide ? 14 : 11 }}
+          >
+            <Icon name="bombMine" size={wide ? 14 : 12} /> {minesLeft}
+            {wide ? ' left' : ''}
+          </span>
+          {hasTimer && <TimerSecondsReadout wide={wide} />}
         </span>
       </div>
       {timerSlot}
     </div>
+  );
+}
+
+/** Remaining turn seconds, mirrored from the authoritative TurnTimer via the
+ *  store so the readout never drifts from the countdown bar below it. */
+function TimerSecondsReadout({ wide }: { wide: boolean }) {
+  const remaining = useMatchStore((s) => s.timerState?.remaining);
+  if (remaining == null) return null;
+  const low = remaining <= 3;
+  return (
+    <span
+      className="md-display inline-flex items-center gap-1 font-bold tabular-nums"
+      style={{ fontSize: wide ? 14 : 11, color: low ? 'var(--md-neon-red)' : 'var(--md-neon-text)' }}
+    >
+      ⏱ {remaining}s
+    </span>
   );
 }
 
@@ -514,7 +542,12 @@ function CornerIndicator({
             )}
           </span>
         </div>
-        {timerNode && <div className="w-24">{timerNode}</div>}
+        {timerNode && (
+          <div className="pointer-events-none flex w-24 items-center gap-1.5">
+            <div className="min-w-0 flex-1">{timerNode}</div>
+            <TimerSecondsReadout wide={false} />
+          </div>
+        )}
       </RotatedGroup>
     </div>
   );

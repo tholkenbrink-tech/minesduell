@@ -32,24 +32,21 @@ export function TurnTimer({
     const restored = saved && saved.resetKey === resetKey ? saved.remaining : seconds;
     setRemaining(restored);
     expiredRef.current = restored === 0;
-    // The authoritative (non-silent) timer owns the store value; a mirrored
-    // silent copy only reads it, so both stay in sync without double-writes.
-    if (!silent) useMatchStore.getState().syncTimer(resetKey, restored);
-  }, [resetKey, seconds, silent]);
+  }, [resetKey, seconds]);
 
   useEffect(() => {
     if (paused) return;
-    const id = setInterval(
-      () =>
-        setRemaining((r) => {
-          const next = Math.max(0, r - 1);
-          if (!silent) useMatchStore.getState().syncTimer(resetKey, next);
-          return next;
-        }),
-      1000,
-    );
+    const id = setInterval(() => setRemaining((r) => Math.max(0, r - 1)), 1000);
     return () => clearInterval(id);
-  }, [paused, silent, resetKey]);
+  }, [paused]);
+
+  // The authoritative (non-silent) timer owns the store value; a mirrored
+  // silent copy only reads it, so both stay in sync without double-writes.
+  // Synced from an effect (after commit) — writing the store from inside the
+  // setRemaining updater would update subscribers mid-render.
+  useEffect(() => {
+    if (!silent) useMatchStore.getState().syncTimer(resetKey, remaining);
+  }, [remaining, silent, resetKey]);
 
   // Fire onExpire from an effect (after commit), not from inside the setRemaining
   // updater — calling a store action mid-render triggers a setState-in-render

@@ -324,7 +324,11 @@ export function BoardScreen() {
           feed={feed}
           mistakePos={mistakePosFromEvents(lastEvents)}
           timer={
-            duel.settings.duelTimer.enabled
+            // Same visibility rule as the side-by-side info strip: Turn by Time
+            // always shows the countdown (the timer IS the turn mechanism);
+            // Streak shows it only when the optional turn timer is enabled.
+            duel.settings.duelVariant === 'turn-by-time' ||
+            (duel.settings.duelTimer.enabled && duel.settings.duelVariant === 'streak')
               ? {
                   seconds: duel.settings.duelTimer.seconds,
                   resetKey: `${duel.activePlayerIndex}-${duel.turnActionsCount}`,
