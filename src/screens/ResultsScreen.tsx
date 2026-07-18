@@ -1,9 +1,33 @@
 import { useMatchStore, type MatchState } from '../store/useMatchStore';
+import type { Player } from '../engine/types';
 import type { DuelState } from '../engine/duel';
 import { rankRaceResults, type RaceState } from '../engine/race';
 import type { CoopState } from '../engine/coop';
 import { PlayerBadge } from '../components/PlayerBadge';
 import { Button, Card } from '../components/ui';
+
+// Shared table treatment: cells never wrap or collide, and on screens too
+// narrow for every column the table scrolls horizontally inside the card.
+const TH = 'whitespace-nowrap px-2 py-1.5 font-semibold first:pl-0 last:pr-0';
+const TD = 'whitespace-nowrap px-2 py-2 tabular-nums first:pl-0 last:pr-0';
+
+function ScrollTable({ minWidth, children }: { minWidth?: number; children: React.ReactNode }) {
+  return (
+    <div className="overflow-x-auto [scrollbar-width:thin]">
+      <table className="w-full text-left text-sm" style={minWidth ? { minWidth } : undefined}>
+        {children}
+      </table>
+    </div>
+  );
+}
+
+function PlayerCell({ player }: { player: Player }) {
+  return (
+    <span className="inline-flex items-center gap-2 whitespace-nowrap">
+      <PlayerBadge player={player} size={22} /> {player.name}
+    </span>
+  );
+}
 
 export function ResultsScreen() {
   const match = useMatchStore((s) => s.match) as MatchState | null;
@@ -16,15 +40,19 @@ export function ResultsScreen() {
 
   if (!match) return null;
 
+  // Clear action hierarchy: one primary follow-up, two secondary variations,
+  // and a quiet way out — instead of a same-weight 2x2 grid.
   const actions = (
-    <div className="mt-6 grid grid-cols-2 gap-2">
-      <Button onClick={rematchNewSeed}>Rematch (new board)</Button>
-      <Button variant="secondary" onClick={replaySameSeed}>
-        Replay same board
-      </Button>
-      <Button variant="secondary" onClick={goToConfig}>
-        Change settings
-      </Button>
+    <div className="mt-6 flex flex-col gap-2">
+      <Button onClick={rematchNewSeed}>Rematch — new board</Button>
+      <div className="grid grid-cols-2 gap-2">
+        <Button variant="secondary" onClick={replaySameSeed}>
+          Replay same board
+        </Button>
+        <Button variant="secondary" onClick={goToConfig}>
+          Change settings
+        </Button>
+      </div>
       <Button variant="ghost" onClick={goToModeSelect}>
         Return home
       </Button>
@@ -36,13 +64,13 @@ export function ResultsScreen() {
     const winner = players.find((p) => p.id === duel.winnerId);
     return (
       <Shell title={winner ? `${winner.name} wins!` : "It's a draw"}>
-        <table className="w-full text-left text-sm">
+        <ScrollTable minWidth={320}>
           <thead>
             <tr className="text-[var(--md-text-muted)]">
-              <th className="py-1">Player</th>
-              <th>Mines</th>
-              <th>Wrong flags</th>
-              <th>Mines hit</th>
+              <th className={TH}>Player</th>
+              <th className={TH}>Mines</th>
+              <th className={TH}>Wrong flags</th>
+              <th className={TH}>Mines hit</th>
             </tr>
           </thead>
           <tbody>
@@ -50,17 +78,17 @@ export function ResultsScreen() {
               const s = duel.stats[p.id];
               return (
                 <tr key={p.id} className="border-t border-[var(--md-border)]">
-                  <td className="flex items-center gap-2 py-2">
-                    <PlayerBadge player={p} size={22} /> {p.name}
+                  <td className={TD}>
+                    <PlayerCell player={p} />
                   </td>
-                  <td>{s.minesDetected}</td>
-                  <td>{s.incorrectFlags}</td>
-                  <td>{s.minesTriggered}</td>
+                  <td className={TD}>{s.minesDetected}</td>
+                  <td className={TD}>{s.incorrectFlags}</td>
+                  <td className={TD}>{s.minesTriggered}</td>
                 </tr>
               );
             })}
           </tbody>
-        </table>
+        </ScrollTable>
         {actions}
       </Shell>
     );
@@ -74,16 +102,15 @@ export function ResultsScreen() {
       <Shell title="Race results">
         {winner && <p className="text-lg font-bold">{winner.name} wins the race!</p>}
         {players.length > 2 && <p className="text-sm text-[var(--md-text-muted)]">Final standings:</p>}
-        <table className="w-full text-left text-sm">
+        <ScrollTable minWidth={430}>
           <thead>
             <tr className="text-[var(--md-text-muted)]">
-              <th className="py-1">#</th>
-              <th>Player</th>
-              <th>Status</th>
-              <th>Time</th>
-              <th>Reveals</th>
-              <th>Flags</th>
-              <th>Lives left</th>
+              <th className={TH}>#</th>
+              <th className={TH}>Player</th>
+              <th className={TH}>Time</th>
+              <th className={TH}>Reveals</th>
+              <th className={TH}>Flags</th>
+              <th className={TH}>Lives</th>
             </tr>
           </thead>
           <tbody>
@@ -91,20 +118,20 @@ export function ResultsScreen() {
               const p = players.find((pp) => pp.id === r.playerId)!;
               return (
                 <tr key={r.playerId} className="border-t border-[var(--md-border)]">
-                  <td className="py-2 font-bold">{r.rank}</td>
-                  <td className="flex items-center gap-2">
-                    <PlayerBadge player={p} size={22} /> {p.name}
+                  <td className={`${TD} font-bold`}>{r.rank}</td>
+                  <td className={TD}>
+                    <PlayerCell player={p} />
+                    {!r.completed && <span className="ml-1.5 text-xs text-[var(--md-text-muted)]">DNF</span>}
                   </td>
-                  <td>{r.completed ? 'Finished' : 'Incomplete'}</td>
-                  <td>{r.timeMs != null ? `${(r.timeMs / 1000).toFixed(1)}s` : '—'}</td>
-                  <td>{r.revealActions}</td>
-                  <td>{r.minesDetected}</td>
-                  <td>{r.livesRemaining}</td>
+                  <td className={TD}>{r.timeMs != null ? `${(r.timeMs / 1000).toFixed(1)}s` : '—'}</td>
+                  <td className={TD}>{r.revealActions}</td>
+                  <td className={TD}>{r.minesDetected}</td>
+                  <td className={TD}>{r.livesRemaining}</td>
                 </tr>
               );
             })}
           </tbody>
-        </table>
+        </ScrollTable>
         {actions}
       </Shell>
     );
@@ -121,31 +148,33 @@ export function ResultsScreen() {
         <Stat label="Rewards earned" value={coop.rewards.length} />
         <Stat label="Survivors" value={players.filter((p) => !coop.stats[p.id].eliminated).length} />
       </div>
-      <table className="mt-4 w-full text-left text-sm">
-        <thead>
-          <tr className="text-[var(--md-text-muted)]">
-            <th className="py-1">Player</th>
-            <th>Mines</th>
-            <th>Safe cells</th>
-            <th>Lives</th>
-          </tr>
-        </thead>
-        <tbody>
-          {players.map((p) => {
-            const s = coop.stats[p.id];
-            return (
-              <tr key={p.id} className="border-t border-[var(--md-border)]">
-                <td className="flex items-center gap-2 py-2">
-                  <PlayerBadge player={p} size={22} /> {p.name}
-                </td>
-                <td>{s.minesDetected}</td>
-                <td>{s.safeCellsRevealed}</td>
-                <td>{s.eliminated ? 'Eliminated' : s.lives}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className="mt-4">
+        <ScrollTable minWidth={320}>
+          <thead>
+            <tr className="text-[var(--md-text-muted)]">
+              <th className={TH}>Player</th>
+              <th className={TH}>Mines</th>
+              <th className={TH}>Safe cells</th>
+              <th className={TH}>Lives</th>
+            </tr>
+          </thead>
+          <tbody>
+            {players.map((p) => {
+              const s = coop.stats[p.id];
+              return (
+                <tr key={p.id} className="border-t border-[var(--md-border)]">
+                  <td className={TD}>
+                    <PlayerCell player={p} />
+                  </td>
+                  <td className={TD}>{s.minesDetected}</td>
+                  <td className={TD}>{s.safeCellsRevealed}</td>
+                  <td className={TD}>{s.eliminated ? 'Out' : s.lives}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </ScrollTable>
+      </div>
       {actions}
     </Shell>
   );
