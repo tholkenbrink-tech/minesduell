@@ -187,7 +187,11 @@ export function applyDuelReveal(state: DuelState, pos: Position): DuelActionResu
     stats.safeCellsRevealed += result.newlyRevealedSafe.length;
   }
 
+  // The per-turn move cap only applies in Turn by Moves. A stale persisted
+  // duelMaxActionsPerTurn (set while that variant was selected) must never
+  // end a Streak turn — there, only mistakes do.
   if (
+    state.settings.duelVariant === 'turn-by-moves' &&
     state.settings.duelMaxActionsPerTurn > 0 &&
     state.turnActionsCount >= state.settings.duelMaxActionsPerTurn
   ) {
@@ -247,7 +251,11 @@ export function applyDuelFlag(state: DuelState, pos: Position): DuelActionResult
   }
   // result.correct === null means a flag was removed; no scoring change, turn continues.
 
+  // The per-turn move cap only applies in Turn by Moves. A stale persisted
+  // duelMaxActionsPerTurn (set while that variant was selected) must never
+  // end a Streak turn — there, only mistakes do.
   if (
+    state.settings.duelVariant === 'turn-by-moves' &&
     state.settings.duelMaxActionsPerTurn > 0 &&
     state.turnActionsCount >= state.settings.duelMaxActionsPerTurn
   ) {

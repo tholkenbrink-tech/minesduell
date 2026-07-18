@@ -376,6 +376,20 @@ describe('duel mode', () => {
     expect(state.winnerId).not.toBe(activeId);
   });
 
+  it('streak ignores a stale move cap left over from Turn by Moves', () => {
+    // Selecting Turn by Moves persists duelMaxActionsPerTurn; switching back
+    // to Streak must not end turns by move count — only mistakes end a turn.
+    const settings = { ...defaultDuelSettings(), duelVariant: 'streak' as const, duelMaxActionsPerTurn: 2 };
+    let state = createDuelMatch(settings, makePlayers(2), 3);
+    state = applyDuelReveal(state, { x: 0, y: 0 }).state;
+    const activeBefore = state.activePlayerIndex;
+    for (let i = 0; i < 4; i++) {
+      const numbered = firstSafeNumberedPosition(state, { x: 0, y: 0 });
+      applyDuelReveal(state, numbered);
+      expect(state.activePlayerIndex).toBe(activeBefore);
+    }
+  });
+
   it('turn-by-time expiry always passes the turn, ignoring a stale streak behavior', () => {
     // A persisted "sudden-death" from a previous Streak config must not end
     // the game once the variant is Turn by Time — expiry just rotates turns.
