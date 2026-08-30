@@ -22,6 +22,13 @@ export interface Prefs {
    * fully disabled for users who trigger it accidentally.
    */
   pressToMark: boolean;
+  /**
+   * One-hand mode: a single finger drags the board around and the control
+   * cluster grows a pair of zoom buttons. Deliberately NOT a third action
+   * mode — scrolling stays live alongside Reveal/Mark, so a tap still plays
+   * a move and a press-and-hold still marks while it is on.
+   */
+  oneFingerScroll: boolean;
   theme: ThemePreference;
   /** 'classic' = the original emoji icons; 'neon' = the alternative SVG set. */
   iconSet: 'classic' | 'neon';
@@ -45,6 +52,7 @@ const DEFAULT_PREFS: Prefs = {
   confirmDangerousReveal: false,
   leftHanded: false,
   pressToMark: true,
+  oneFingerScroll: false,
   theme: 'system',
   iconSet: 'neon',
   recentPlayerNames: [],

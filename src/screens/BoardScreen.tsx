@@ -7,7 +7,7 @@ import type { DuelState } from '../engine/duel';
 import { duelHasLives, duelTargetCount } from '../engine/duel';
 import type { RaceState } from '../engine/race';
 import type { CoopState } from '../engine/coop';
-import { BoardView } from '../components/board/BoardView';
+import { BoardView, type BoardZoomApi } from '../components/board/BoardView';
 import { SeatedBoard } from '../components/board/SeatedBoard';
 import { ControlDock } from '../components/board/ControlDock';
 import { isArrangementCompatible, renderArrangement, resolveControlAnchor, seatForPlayer } from '../engine/arrangement';
@@ -18,6 +18,7 @@ import { Button, PauseButton } from '../components/ui';
 import { PauseMenu } from '../components/PauseMenu';
 import { TurnTransitionOverlay } from '../components/TurnTransitionOverlay';
 import { RaceHandover } from '../components/RaceHandover';
+import { useIsShort } from '../hooks/useMediaQuery';
 import { Icon } from '../components/icons';
 
 /** Position of the tile behind the latest mistake, for the brief tile shake. */
@@ -50,20 +51,25 @@ export function BoardScreen() {
   const lastEvents = useMatchStore((s) => s.lastEvents);
   const tileSizePref = usePrefsStore((s) => s.tileSize);
   const controlAnchors = usePrefsStore((s) => s.controlAnchors);
+  const oneFingerScroll = usePrefsStore((s) => s.oneFingerScroll);
+  const setPref = usePrefsStore((s) => s.setPref);
   const setControlAnchor = usePrefsStore((s) => s.setControlAnchor);
 
   const [showConfirm, setShowConfirm] = useState<{ x: number; y: number } | null>(null);
+  // Landscape phone: every row of chrome costs board. Race folds its full-width
+  // "Give up run" bar into a button in the top row when height is scarce.
+  const shortViewport = useIsShort();
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') setPaused(!paused);
       if (e.key.toLowerCase() === 'r') setActionMode('reveal');
       if (e.key.toLowerCase() === 'f') setActionMode('flag');
-      if (e.key.toLowerCase() === 's') setActionMode('pan');
+      if (e.key.toLowerCase() === 's') setPref('oneFingerScroll', !oneFingerScroll);
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [paused, setPaused, setActionMode]);
+  }, [paused, setPaused, setActionMode, setPref, oneFingerScroll]);
 
   const handleAction = useCallback(
     (kind: 'reveal' | 'flag', pos: { x: number; y: number }) => {
@@ -85,7 +91,7 @@ export function BoardScreen() {
   // over the play field, defaults to the active seat's side (bottom for
   // side-by-side), and is re-anchored + persisted per player slot. `rotation`
   // keeps the toggle upright for that seat regardless of where it's docked.
-  const buildDock = (activeIndex: number) => {
+  const buildDock = (activeIndex: number) => (zoom: BoardZoomApi) => {
     const seat = seatForPlayer(seats, players[activeIndex]?.id);
     return (
       <ControlDock
@@ -94,6 +100,9 @@ export function BoardScreen() {
         rotation={seat?.rotation ?? 0}
         actionMode={actionMode}
         setActionMode={setActionMode}
+        oneFingerScroll={oneFingerScroll}
+        setOneFingerScroll={(on) => setPref('oneFingerScroll', on)}
+        zoom={zoom}
         onAnchorChange={setControlAnchor}
       />
     );
@@ -129,6 +138,11 @@ export function BoardScreen() {
           <PlayerStatusCard player={currentPlayer} stats={run.stats} active showLives compact />
           <span className="inline-flex items-center gap-2">
             <span className="inline-flex items-center gap-1 font-semibold"><Icon name="bombMine" size={12} /> {countRemainingMines(run.board)} left</span>
+            {shortViewport && (
+              <Button variant="secondary" onClick={giveUpRace} className="!px-3 !py-1.5 !text-xs">
+                Give up run
+              </Button>
+            )}
             <PauseButton onPause={() => setPaused(true)} />
           </span>
         </div>
@@ -138,15 +152,18 @@ export function BoardScreen() {
             players={players}
             activePlayerId={currentPlayer.id}
             actionMode={actionMode}
+            oneFingerScroll={oneFingerScroll}
             disabled={paused}
             tileSizePref={tileSizePref}
             overlay={buildDock(raceState.currentIndex)}
             onAction={handleAction}
           />
         </div>
-        <Button variant="secondary" onClick={giveUpRace}>
-          Give up run
-        </Button>
+        {!shortViewport && (
+          <Button variant="secondary" onClick={giveUpRace}>
+            Give up run
+          </Button>
+        )}
         {paused && <PauseMenu onClose={() => setPaused(false)} />}
       </div>
     );
@@ -175,6 +192,7 @@ export function BoardScreen() {
             minesLeft={countRemainingMines(coop.board)}
             onPause={() => setPaused(true)}
             actionMode={actionMode}
+            oneFingerScroll={oneFingerScroll}
             onAction={handleAction}
             overlay={buildDock(coop.activePlayerIndex)}
             disabled={paused || turnTransition.active || Boolean(peekResolved)}
@@ -277,6 +295,7 @@ export function BoardScreen() {
             players={players}
             activePlayerId={active.id}
             actionMode={actionMode}
+            oneFingerScroll={oneFingerScroll}
             disabled={paused || turnTransition.active || Boolean(peekResolved)}
             tileSizePref={tileSizePref}
             mistakePos={mistakePosFromEvents(lastEvents)}
@@ -325,6 +344,7 @@ export function BoardScreen() {
           onPause={() => setPaused(true)}
           scoreTarget={duelScoreTarget}
           actionMode={actionMode}
+          oneFingerScroll={oneFingerScroll}
           onAction={handleAction}
           overlay={buildDock(duel.activePlayerIndex)}
           disabled={paused || turnTransition.active}
@@ -417,6 +437,7 @@ export function BoardScreen() {
           players={players}
           activePlayerId={active.id}
           actionMode={actionMode}
+          oneFingerScroll={oneFingerScroll}
           disabled={paused || turnTransition.active}
           tileSizePref={tileSizePref}
           mistakePos={mistakePosFromEvents(lastEvents)}

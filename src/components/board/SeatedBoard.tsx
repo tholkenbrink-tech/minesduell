@@ -3,7 +3,7 @@ import type { ActionMode, Board, Player, PlayerStats, Position } from '../../eng
 import type { PlayerSeat, SeatPosition, SeatRotation } from '../../engine/arrangement';
 import { SEAT_ROTATION, emptyTableSide, seatForPlayer } from '../../engine/arrangement';
 import { useMatchStore } from '../../store/useMatchStore';
-import { BoardView } from './BoardView';
+import { BoardView, type BoardZoomApi } from './BoardView';
 import { TurnTimer } from '../hud/TurnTimer';
 import { PlayerBadge } from '../PlayerBadge';
 import { RotatedGroup } from '../RotatedGroup';
@@ -48,10 +48,12 @@ export interface SeatedBoardProps {
   timer: SeatedTimerConfig | null;
   /** Flags needed to win (duel majority / first-to). Shown as scored/target in seat pills. */
   scoreTarget?: number | null;
-  /** The movable Reveal/Mark control dock, laid over the play field. It already
-   *  carries the active seat's rotation, so this shell only positions the board
-   *  and HUD around it. */
-  overlay?: ReactNode;
+  /** One-hand mode: a single finger drags the board (taps still play moves). */
+  oneFingerScroll?: boolean;
+  /** The movable control dock, laid over the play field. It already carries the
+   *  active seat's rotation, so this shell only positions the board and HUD
+   *  around it; the board hands it the zoom controls. */
+  overlay?: (zoom: BoardZoomApi) => ReactNode;
   /** Overlay slot rendered above the neutral board (e.g. turn transition). */
   children?: ReactNode;
 }
@@ -78,6 +80,7 @@ export function SeatedBoard(props: SeatedBoardProps) {
         players={props.players}
         activePlayerId={activePlayer?.id}
         actionMode={props.actionMode}
+        oneFingerScroll={props.oneFingerScroll}
         disabled={props.disabled}
         tileSizePref={props.tileSizePref}
         orientationDeg={activeRotation}

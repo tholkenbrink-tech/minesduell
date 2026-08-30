@@ -23,10 +23,10 @@ export function RulesModal({ onClose }: { onClose: () => void }) {
             right click always flags.
           </p>
           <p>
-            <strong>One-hand mode:</strong> the ✥ arrows mode makes the board scrollable with a single finger — drag
-            to move around, double-tap to zoom in a step, triple-tap to zoom back out. Taps never play a move while
-            it's on, so you can reposition the board without risking a mine. With it off, use two fingers to pan and
-            pinch as usual. Drag the ⠿ grip to move the control cluster anywhere around the board.
+            <strong>One-hand mode:</strong> the ✥ arrows button lets a single finger drag the board around, and adds
+            − / + zoom buttons beside it. It is a switch, not a mode — tapping still reveals and a press-and-hold
+            still marks while it is on, so you can play and move around with the same thumb. With it off, use two
+            fingers to pan and pinch. Drag the ⠿ grip to move the control cluster anywhere around the board.
           </p>
           <p>
             <strong>Numbers:</strong> a revealed tile shows how many mines are hiding in its 8 neighboring tiles.

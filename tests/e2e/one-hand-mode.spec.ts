@@ -1,10 +1,12 @@
 import { test, expect } from '@playwright/test';
 import { startMatch, modeRadio } from './helpers';
 
-// One-hand mode: the board scrolls and zooms with a single finger so the game
-// is playable without a second hand. Taps must never play a move while it is
-// on — that's the whole point of a dedicated mode rather than a modifier.
+// One-hand mode is a switch layered on top of the action mode, not a third
+// mode: with it on a drag scrolls the board while a tap still plays a move.
 test.use({ viewport: { width: 390, height: 844 } });
+
+const scrollToggle = (page: import('@playwright/test').Page) =>
+  page.getByRole('button', { name: 'One-hand scrolling' });
 
 const board = (page: import('@playwright/test').Page) => ({
   scale: () =>
@@ -19,90 +21,101 @@ const board = (page: import('@playwright/test').Page) => ({
       return { x: parseFloat(m?.[1] ?? '0'), y: parseFloat(m?.[2] ?? '0') };
     }),
   revealed: () => page.locator('[role="gridcell"]:not([aria-label="hidden"])').count(),
+  flagged: () => page.locator('[role="gridcell"][aria-label="flagged"]').count(),
 });
 
-/** One single-finger drag across the board, from its center by (dx, dy). */
-function dragOneFinger(page: import('@playwright/test').Page, dx: number, dy: number) {
-  return page.evaluate(
+/** One single-finger gesture from the board center: a drag when (dx, dy) is
+ *  large, a plain tap when it is (0, 0). `holdMs` waits before releasing. */
+async function oneFinger(
+  page: import('@playwright/test').Page,
+  { dx = 0, dy = 0, holdMs = 0 }: { dx?: number; dy?: number; holdMs?: number },
+) {
+  await page.evaluate(
     ([dx, dy]) => {
       const grid = document.querySelector('[role="grid"]') as HTMLElement;
       const rect = grid.getBoundingClientRect();
       const cx = rect.left + rect.width / 2;
       const cy = rect.top + rect.height / 2;
+      (window as unknown as { __end: () => void }).__end = () => {
+        grid.dispatchEvent(
+          new PointerEvent('pointerup', {
+            bubbles: true,
+            clientX: cx + dx,
+            clientY: cy + dy,
+            pointerId: 1,
+            pointerType: 'touch',
+          }),
+        );
+      };
       const fire = (type: string, x: number, y: number) =>
         grid.dispatchEvent(
           new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, pointerId: 1, pointerType: 'touch' }),
         );
       fire('pointerdown', cx, cy);
       for (let step = 1; step <= 6; step++) fire('pointermove', cx + (dx * step) / 6, cy + (dy * step) / 6);
-      fire('pointerup', cx + dx, cy + dy);
     },
     [dx, dy],
   );
+  if (holdMs) await page.waitForTimeout(holdMs);
+  await page.evaluate(() => (window as unknown as { __end: () => void }).__end());
 }
 
-/** `count` quick taps on the board center, inside the multi-tap window. */
-function tapBoard(page: import('@playwright/test').Page, count: number) {
-  return page.evaluate((count) => {
-    const grid = document.querySelector('[role="grid"]') as HTMLElement;
-    const rect = grid.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    for (let i = 0; i < count; i++) {
-      const id = 100 + i;
-      for (const type of ['pointerdown', 'pointerup']) {
-        grid.dispatchEvent(
-          new PointerEvent(type, { bubbles: true, clientX: cx, clientY: cy, pointerId: id, pointerType: 'touch' }),
-        );
-      }
-    }
-  }, count);
-}
-
-test('one finger pans the board and never plays a move', async ({ page }) => {
+test('a drag scrolls the board while a tap still reveals', async ({ page }) => {
   await startMatch(page, { mode: 'Duel', width: 30, height: 40, mines: 120 });
   const b = board(page);
-  await modeRadio(page, 'One-hand scroll and zoom').click();
-  await expect(page.getByRole('grid')).toHaveAttribute('data-action-mode', 'pan');
+  await scrollToggle(page).click();
+  await expect(scrollToggle(page)).toHaveAttribute('aria-pressed', 'true');
 
   const before = await b.translate();
-  await dragOneFinger(page, -90, -60);
+  await oneFinger(page, { dx: -90, dy: -60 });
   const after = await b.translate();
-
   expect(after.x).toBeCloseTo(before.x - 90, 0);
   expect(after.y).toBeCloseTo(before.y - 60, 0);
-  expect(await b.revealed()).toBe(0);
+  expect(await b.revealed()).toBe(0); // the drag itself plays nothing
+
+  // ...but a tap that never leaves its tile still reveals, without switching off.
+  await oneFinger(page, {});
+  expect(await b.revealed()).toBeGreaterThan(0);
+  await expect(scrollToggle(page)).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('with one-hand mode off, one finger neither pans nor drags a move out', async ({ page }) => {
+test('press-and-hold still marks a mine while scrolling is on', async ({ page }) => {
   await startMatch(page, { mode: 'Duel', width: 30, height: 40, mines: 120 });
   const b = board(page);
+  await scrollToggle(page).click();
+
+  await oneFinger(page, { holdMs: 600 });
+  expect(await b.flagged()).toBe(1);
+  // The hold must not also count as a tap on release.
+  expect(await b.revealed()).toBe(1); // the flagged tile only
+  // And the action mode is untouched — the hold is a shortcut, not a switch.
+  await expect(modeRadio(page, 'Reveal')).toHaveAttribute('aria-checked', 'true');
+});
+
+test('with one-hand mode off, one finger drags nothing', async ({ page }) => {
+  await startMatch(page, { mode: 'Duel', width: 30, height: 40, mines: 120 });
+  const b = board(page);
+  await expect(scrollToggle(page)).toHaveAttribute('aria-pressed', 'false');
 
   const before = await b.translate();
-  await dragOneFinger(page, -90, -60);
-
+  await oneFinger(page, { dx: -90, dy: -60 });
   expect(await b.translate()).toEqual(before);
   expect(await b.revealed()).toBe(0);
 });
 
-test('double tap zooms in a step, triple tap zooms back out', async ({ page }) => {
+test('the zoom buttons appear only with one-hand mode on, and step the board', async ({ page }) => {
   await startMatch(page, { mode: 'Duel', width: 30, height: 40, mines: 120 });
   const b = board(page);
-  await modeRadio(page, 'One-hand scroll and zoom').click();
+  await expect(page.getByRole('button', { name: 'Zoom in' })).toHaveCount(0);
 
-  // A single tap resolves to nothing at all — no move, no zoom.
-  await tapBoard(page, 1);
-  await page.waitForTimeout(400);
-  expect(await b.scale()).toBeCloseTo(1, 2);
-  expect(await b.revealed()).toBe(0);
-
-  await tapBoard(page, 2);
-  await page.waitForTimeout(400);
+  await scrollToggle(page).click();
+  await page.getByRole('button', { name: 'Zoom in' }).click();
   const zoomedIn = await b.scale();
   expect(zoomedIn).toBeGreaterThan(1);
 
-  await tapBoard(page, 3);
-  await page.waitForTimeout(400);
+  await page.getByRole('button', { name: 'Zoom out' }).click();
   expect(await b.scale()).toBeLessThan(zoomedIn);
-  expect(await b.revealed()).toBe(0);
+
+  await scrollToggle(page).click();
+  await expect(page.getByRole('button', { name: 'Zoom in' })).toHaveCount(0);
 });

@@ -4,6 +4,7 @@ import type { ControlAnchor, SeatRotation } from '../../engine/arrangement';
 import { CONTROL_ANCHORS, dockIsVertical } from '../../engine/arrangement';
 import { useRotatedSize } from '../../hooks/useRotatedSize';
 import { Icon, type IconName } from '../icons';
+import type { BoardZoomApi } from './BoardView';
 
 export interface ControlDockProps {
   /** Active player's slot (seat/turn index) — the override is saved per slot. */
@@ -15,6 +16,12 @@ export interface ControlDockProps {
   rotation: SeatRotation;
   actionMode: ActionMode;
   setActionMode: (m: ActionMode) => void;
+  /** One-hand mode on/off. Independent of the action mode on purpose: with it
+   *  on, a drag scrolls while a tap still reveals and a hold still marks. */
+  oneFingerScroll: boolean;
+  setOneFingerScroll: (on: boolean) => void;
+  /** Board zoom, driven by the buttons that appear while scrolling is on. */
+  zoom: BoardZoomApi;
   /** Persist a new anchor for this slot (null clears back to the default). */
   onAnchorChange: (slot: number, anchor: ControlAnchor | null) => void;
   /** Optional extras rendered beside the toggle (e.g. a timer or mines-left). */
@@ -92,6 +99,9 @@ export function ControlDock({
   rotation,
   actionMode,
   setActionMode,
+  oneFingerScroll,
+  setOneFingerScroll,
+  zoom,
   onAnchorChange,
   extra,
 }: ControlDockProps) {
@@ -206,6 +216,8 @@ export function ControlDock({
                   backdropFilter: 'blur(6px)',
                 }}
               >
+                <ScrollToggle on={oneFingerScroll} setOn={setOneFingerScroll} />
+                {oneFingerScroll && <ZoomButtons zoom={zoom} vertical={vertical} />}
                 <ActionToggle actionMode={actionMode} setActionMode={setActionMode} vertical={vertical} />
                 {extra && <div className={vertical ? 'py-0.5' : 'px-0.5'}>{extra}</div>}
                 <button
@@ -229,28 +241,86 @@ export function ControlDock({
   );
 }
 
-/** The three-way mode selector: one-hand scroll/zoom, Reveal, Mark.
+/** Shared look for a round 36px control inside the cluster. */
+function clusterButtonStyle(on: boolean, color: string, fg: string): React.CSSProperties {
+  return {
+    minHeight: 36,
+    minWidth: 36,
+    background: on ? color : 'transparent',
+    boxShadow: on ? `0 0 10px color-mix(in srgb, ${color} 55%, transparent)` : 'none',
+    color: on ? fg : 'var(--md-neon-text-muted)',
+    opacity: on ? 1 : 0.7,
+  };
+}
+
+/**
+ * One-hand mode: an independent on/off switch, not a third action mode.
+ *
+ * It was a third radio option at first, which meant turning scrolling on took
+ * tapping and marking away — exactly the thing you want while you are moving
+ * around a board one-handed. As a toggle it composes instead: drag to scroll,
+ * tap to reveal, press-and-hold to mark, all at once.
+ */
+function ScrollToggle({ on, setOn }: { on: boolean; setOn: (on: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      aria-label="One-hand scrolling"
+      title="One-hand scrolling"
+      onClick={() => setOn(!on)}
+      className="focus-ring flex items-center justify-center rounded-full transition-colors"
+      style={{
+        ...clusterButtonStyle(on, 'var(--md-neon-amber)', 'var(--md-accent-contrast)'),
+        border: '1px solid rgba(255,255,255,0.12)',
+      }}
+    >
+      <Icon name="pan" size={17} />
+    </button>
+  );
+}
+
+/** Zoom in/out, shown only while one-hand mode is on — a pinch needs a second
+ *  hand, so without these there would be no one-handed way to zoom. */
+function ZoomButtons({ zoom, vertical }: { zoom: BoardZoomApi; vertical?: boolean }) {
+  const buttons = [
+    { key: 'out', label: 'Zoom out', glyph: '\u2212', onClick: zoom.zoomOut, enabled: zoom.canZoomOut },
+    { key: 'in', label: 'Zoom in', glyph: '+', onClick: zoom.zoomIn, enabled: zoom.canZoomIn },
+  ];
+  return (
+    <div className={`flex items-center gap-1 ${vertical ? 'flex-col' : ''}`}>
+      {buttons.map((b) => (
+        <button
+          key={b.key}
+          type="button"
+          aria-label={b.label}
+          title={b.label}
+          disabled={!b.enabled}
+          onClick={b.onClick}
+          className="md-display focus-ring flex items-center justify-center rounded-full text-lg font-bold leading-none transition-colors disabled:opacity-30"
+          style={{
+            minHeight: 36,
+            minWidth: 36,
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            color: 'var(--md-neon-text)',
+          }}
+        >
+          {b.glyph}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** The Reveal/Mark selector.
  *
  *  It used to be a single <button> wrapping two more <button>s, which is
  *  invalid HTML — nested interactive elements make the hit-testing and the
  *  reported accessibility state browser-dependent. This is a proper
- *  radiogroup of three siblings: exactly one is checked, each is directly
- *  selectable, and there is no ambiguous "tap the track to cycle" behavior
- *  now that there are three modes rather than two. */
-const MODE_OPTIONS: {
-  mode: ActionMode;
-  icon: IconName;
-  label: string;
-  color: string;
-  fg: string;
-}[] = [
-  {
-    mode: 'pan',
-    icon: 'pan',
-    label: 'One-hand scroll and zoom',
-    color: 'var(--md-neon-amber)',
-    fg: 'var(--md-accent-contrast)',
-  },
+ *  radiogroup of siblings: exactly one is checked and each is directly
+ *  selectable. */
+const MODE_OPTIONS: { mode: ActionMode; icon: IconName; label: string; color: string; fg: string }[] = [
   { mode: 'reveal', icon: 'reveal', label: 'Reveal', color: 'var(--md-neon-cyan)', fg: 'var(--md-accent-contrast)' },
   { mode: 'flag', icon: 'flag', label: 'Mark mine', color: 'var(--md-neon-pink)', fg: '#fff' },
 ];
@@ -289,14 +359,7 @@ function ActionToggle({
             title={opt.label}
             onClick={() => setActionMode(opt.mode)}
             className="focus-ring flex items-center justify-center rounded-full transition-colors"
-            style={{
-              minHeight: 36,
-              minWidth: 36,
-              background: on ? opt.color : 'transparent',
-              boxShadow: on ? `0 0 10px color-mix(in srgb, ${opt.color} 55%, transparent)` : 'none',
-              color: on ? opt.fg : 'var(--md-neon-text-muted)',
-              opacity: on ? 1 : 0.7,
-            }}
+            style={clusterButtonStyle(on, opt.color, opt.fg)}
           >
             <Icon name={opt.icon} size={17} />
           </button>
