@@ -38,7 +38,7 @@ export function defaultDuelSettings(): GameSettings {
     duelTurnChangeOnMistake: true,
     duelMistakeLimit: { mode: 'unlimited', count: DEFAULT_DUEL_MISTAKE_LIMIT_COUNT },
     raceLives: 3,
-    raceScoring: 'time',
+    raceScoring: 'survival',
     raceCompletionRule: 'reveal-all-safe',
     raceMaxSeconds: 0,
     coopLives: 3,
@@ -58,7 +58,7 @@ export function defaultRaceSettings(): GameSettings {
     mode: 'race',
     board: { ...DIFFICULTY_PRESETS.medium },
     raceLives: 3,
-    raceScoring: 'time',
+    raceScoring: 'survival',
     raceCompletionRule: 'reveal-all-safe',
     raceMaxSeconds: 0,
   };

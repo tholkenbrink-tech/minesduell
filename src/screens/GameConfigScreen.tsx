@@ -291,7 +291,7 @@ export function GameConfigScreen() {
               id="race-lives"
               label="Lives"
               min={1}
-              max={9}
+              max={99}
               value={settings.raceLives}
               onChange={(v) => updateSettings({ raceLives: v })}
             />
@@ -302,9 +302,9 @@ export function GameConfigScreen() {
                 onChange={(e) => updateSettings({ raceScoring: e.target.value as typeof settings.raceScoring })}
                 className="focus-ring rounded-[var(--md-radius-sm)] border border-[var(--md-border)] bg-[var(--md-surface)] px-3 py-2"
               >
+                <option value="survival">Survival Race</option>
                 <option value="time">Time Race</option>
                 <option value="click">Click Race</option>
-                <option value="survival">Survival Race</option>
               </select>
             </label>
           </div>

@@ -173,6 +173,10 @@ export function NumberField({
             onChange(num);
           }
         }}
+        // Select on focus so typing replaces the value instead of appending to
+        // it — with a two-digit cap, "3" + "5" silently becoming 35 is worse
+        // than the tap-then-type-a-number flow people expect from these fields.
+        onFocus={(e) => e.currentTarget.select()}
         onBlur={commitDraft}
         onKeyDown={(e) => {
           if (e.key === 'Enter') commitDraft();
