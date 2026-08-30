@@ -18,9 +18,15 @@ export function RulesModal({ onClose }: { onClose: () => void }) {
         </h2>
         <div className="mt-4 flex flex-col gap-3 text-sm">
           <p>
-            <strong>Reveal vs. Flag:</strong> pick an action mode with the segmented control near your side of the
-            screen. Tap a tile to Reveal it, or switch to Flag to mark suspected mines. On a mouse, left click always
-            reveals and right click always flags.
+            <strong>Action modes:</strong> pick one with the three-way control near your side of the screen. Tap a
+            tile to Reveal it, or switch to Mark to flag suspected mines. On a mouse, left click always reveals and
+            right click always flags.
+          </p>
+          <p>
+            <strong>One-hand mode:</strong> the ✥ arrows mode makes the board scrollable with a single finger — drag
+            to move around, double-tap to zoom in a step, triple-tap to zoom back out. Taps never play a move while
+            it's on, so you can reposition the board without risking a mine. With it off, use two fingers to pan and
+            pinch as usual. Drag the ⠿ grip to move the control cluster anywhere around the board.
           </p>
           <p>
             <strong>Numbers:</strong> a revealed tile shows how many mines are hiding in its 8 neighboring tiles.

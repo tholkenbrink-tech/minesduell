@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { startMatch } from './helpers';
 
-test('pinch zooms the board in, clamped to 130%, and wheel zooms out, clamped to 70%', async ({ page }) => {
+test('pinch zooms the board in, clamped to 200%, and wheel zooms out, clamped to 70%', async ({ page }) => {
   await startMatch(page, { mode: 'Duel', width: 30, height: 40, mines: 120 });
 
   const getScale = () =>
@@ -34,7 +34,7 @@ test('pinch zooms the board in, clamped to 130%, and wheel zooms out, clamped to
     fire('pointerup', 2, cx + 140, cy);
   });
 
-  expect(await getScale()).toBeCloseTo(1.3, 2);
+  expect(await getScale()).toBeCloseTo(2, 2);
 
   // Wheel zoom out — should clamp at 0.7.
   await page.evaluate(() => {

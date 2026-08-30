@@ -43,6 +43,37 @@ export const CONTROL_ANCHORS: ControlAnchor[] = [
   'bottom-right',
 ];
 
+/**
+ * Anchors that lay the control cluster out as a vertical strip: the left/right
+ * edges and all four corners. Hugging a vertical edge — or a corner, where the
+ * strip runs down the side rather than across the board's width — leaves the
+ * widest possible band of mine field visible on a phone held upright.
+ */
+const VERTICAL_ANCHORS = new Set<ControlAnchor>([
+  'left',
+  'right',
+  'top-left',
+  'top-right',
+  'bottom-left',
+  'bottom-right',
+]);
+
+/**
+ * Whether the control cluster's *pre-rotation* layout must be a vertical stack
+ * to end up looking vertical on screen.
+ *
+ * The seat rotation is applied as a CSS transform AFTER the layout is chosen,
+ * and a 90/270deg rotation swaps the visual width/height axes — so when that
+ * swap is in play the pre-rotation layout must be the opposite of the desired
+ * final shape, or the rotation silently cancels it back out (a vertical stack
+ * rotated 90deg reads as a horizontal row again). Hence the XOR.
+ */
+export function dockIsVertical(anchor: ControlAnchor, rotation: SeatRotation): boolean {
+  const wantsVerticalStrip = VERTICAL_ANCHORS.has(anchor);
+  const rotationSwapsAxes = rotation === 90 || rotation === 270;
+  return wantsVerticalStrip !== rotationSwapsAxes;
+}
+
 /** The screen edge a seat's controls naturally dock to when not overridden. */
 const SEAT_ANCHOR: Record<SeatPosition, ControlAnchor> = {
   bottom: 'bottom',

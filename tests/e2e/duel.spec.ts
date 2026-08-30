@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { startMatch, gridCells, clickCell } from './helpers';
+import { startMatch, gridCells, clickCell, modeRadio } from './helpers';
 
 test('starts a two-player duel and shows both players in the HUD', async ({ page }) => {
   await startMatch(page, { mode: 'Duel', width: 8, height: 8, mines: 5 });
@@ -15,8 +15,8 @@ test('reveals a cell on click and switches Reveal/Flag action mode', async ({ pa
   const revealedCount = await page.locator('[role="gridcell"]:not([aria-label="hidden"]):not([aria-label="flagged"])').count();
   expect(revealedCount).toBeGreaterThan(0);
 
-  await page.getByRole('button', { name: 'Select Flag' }).click();
-  await expect(page.getByRole('radio')).toHaveAttribute('aria-checked', 'true');
+  await modeRadio(page, 'Mark mine').click();
+  await expect(modeRadio(page, 'Mark mine')).toHaveAttribute('aria-checked', 'true');
 });
 
 test('streak mode (default): a correct reveal KEEPS the same player active', async ({ page }) => {
@@ -33,7 +33,7 @@ test('streak mode (default): a correct reveal KEEPS the same player active', asy
 
 test('flag toggle is idempotent regardless of mine placement', async ({ page }) => {
   await startMatch(page, { mode: 'Duel', width: 8, height: 8, mines: 5 });
-  await page.getByRole('button', { name: 'Select Flag' }).click();
+  await modeRadio(page, 'Mark mine').click();
 
   // Target the same physical cell (by grid position) both times, regardless
   // of whether flagging it happened to end the turn. An incorrect flag ends
@@ -46,14 +46,14 @@ test('flag toggle is idempotent regardless of mine placement', async ({ page }) 
   await expect(cell).toHaveAttribute('aria-label', 'flagged');
   await page.waitForTimeout(2000);
 
-  await page.getByRole('button', { name: 'Select Flag' }).click();
+  await modeRadio(page, 'Mark mine').click();
   await cell.click();
   await expect(cell).toHaveAttribute('aria-label', 'hidden');
 });
 
 test('a mistake ends the turn and rotates the active player', async ({ page }) => {
   await startMatch(page, { mode: 'Duel', width: 6, height: 6, mines: 1 });
-  await page.getByRole('button', { name: 'Select Flag' }).click();
+  await modeRadio(page, 'Mark mine').click();
 
   // With only 1 mine in 36 cells, flagging several safe cells in a row is
   // near-certain to include at least one incorrect flag, which always ends

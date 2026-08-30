@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { Board, Player, Position } from '../../engine/types';
+import type { ActionMode, Board, Player, Position } from '../../engine/types';
 import { usePrefsStore } from '../../store/usePrefsStore';
 import { vibrate } from '../../lib/haptics';
 import { Cell } from './Cell';
@@ -33,9 +33,18 @@ const FORCE_PRESS_MAX = 0.999;
  * would immediately un-mark it. */
 const LONG_PRESS_CONTEXTMENU_SUPPRESS_MS = 700;
 
-/** Board zoom is clamped to 70%-130% of the default (100%) size. */
+/** Board zoom is clamped to 70%-200% of the default (100%) size. The upper
+ *  bound is generous enough that one-hand mode's tap-to-zoom has somewhere to
+ *  go: a couple of steps genuinely magnify the field rather than nudging it. */
 const ZOOM_MIN = 0.7;
-const ZOOM_MAX = 1.3;
+const ZOOM_MAX = 2;
+/** One tap-to-zoom step in one-hand mode (double tap in / triple tap out). */
+const TAP_ZOOM_STEP = 1.35;
+/** How long after a tap we keep waiting for another one before deciding
+ *  whether it was a single, double, or triple tap. */
+const MULTI_TAP_WINDOW_MS = 280;
+/** Two taps only count as one gesture if they land near each other. */
+const MULTI_TAP_MAX_DISTANCE = 32;
 /** Exponential factor applied per wheel-delta pixel; tuned so one mouse-wheel
  *  notch (~deltaY 100) steps roughly 10-15%, and trackpad scrolling zooms smoothly. */
 const WHEEL_ZOOM_SENSITIVITY = 0.0015;
@@ -48,7 +57,7 @@ export interface BoardViewProps {
   board: Board;
   players: Player[];
   activePlayerId?: string;
-  actionMode: 'reveal' | 'flag';
+  actionMode: ActionMode;
   disabled?: boolean;
   tileSizePref: 'compact' | 'comfortable' | 'large';
   /** Cell-content rotation toward the active seat (0/90/180/270). The grid,
@@ -146,6 +155,16 @@ export function BoardView({
   const lastLongPressAt = useRef(0);
   /** Live container size, tracked so the per-edge scroll cues update on resize. */
   const [viewSize, setViewSize] = useState({ w: 0, h: 0 });
+  /** One-hand mode: single-finger drags pan the board, taps never play a move,
+   *  and a double/triple tap zooms in/out a step. */
+  const panMode = actionMode === 'pan';
+  /** Pending multi-tap gesture in one-hand mode: taps are counted and only
+   *  acted on once the window closes, so a triple tap never fires the
+   *  double-tap zoom-in on its way through. */
+  const tapGesture = useRef<{ count: number; x: number; y: number; timer: ReturnType<typeof setTimeout> } | null>(null);
+  /** True once a one-finger drag in one-hand mode has actually moved the board
+   *  — the release then must not be counted as a tap. */
+  const draggedPan = useRef(false);
 
   function updatePan(next: { x: number; y: number }) {
     panRef.current = next;
@@ -213,8 +232,48 @@ export function BoardView({
   }
 
   function performAction(pos: Position) {
-    if (disabled) return;
+    if (disabled || actionMode === 'pan') return;
     onAction(actionMode, pos);
+  }
+
+  /** Zooms one step about a screen point, keeping that point under the finger. */
+  function zoomStep(factor: number, clientX: number, clientY: number) {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const curZoom = zoomRef.current;
+    const newZoom = clampZoom(curZoom * factor);
+    if (newZoom === curZoom) return;
+    const fx = clientX - rect.left;
+    const fy = clientY - rect.top;
+    const bx = (fx - panRef.current.x) / curZoom;
+    const by = (fy - panRef.current.y) / curZoom;
+    updateZoom(newZoom);
+    updatePan(clampPan({ x: fx - bx * newZoom, y: fy - by * newZoom }, newZoom));
+  }
+
+  function clearTapGesture() {
+    if (tapGesture.current) {
+      clearTimeout(tapGesture.current.timer);
+      tapGesture.current = null;
+    }
+  }
+
+  /** Counts a tap in one-hand mode and resolves the gesture once the multi-tap
+   *  window closes: 1 tap does nothing, 2 zoom in a step, 3+ zoom out a step. */
+  function registerPanModeTap(clientX: number, clientY: number) {
+    const prev = tapGesture.current;
+    const continues =
+      prev != null && Math.hypot(clientX - prev.x, clientY - prev.y) <= MULTI_TAP_MAX_DISTANCE;
+    if (prev) clearTimeout(prev.timer);
+    const count = continues ? prev.count + 1 : 1;
+    const x = continues ? prev.x : clientX;
+    const y = continues ? prev.y : clientY;
+    const timer = setTimeout(() => {
+      tapGesture.current = null;
+      if (count === 2) zoomStep(TAP_ZOOM_STEP, x, y);
+      else if (count >= 3) zoomStep(1 / TAP_ZOOM_STEP, x, y);
+    }, MULTI_TAP_WINDOW_MS);
+    tapGesture.current = { count, x, y, timer };
   }
 
   function cancelLongPress(p: ActivePointer) {
@@ -248,9 +307,14 @@ export function BoardView({
         return;
       }
       if (e.button !== 0) return; // right click handled by contextmenu
-      const pos = cellFromClientPoint(e.clientX, e.clientY);
-      if (pos) performAction(pos);
-      return;
+      // One-hand mode drags and multi-tap zooms identically with a mouse, so
+      // it falls through to the shared pointer tracking below instead of
+      // playing a move on press.
+      if (!panMode) {
+        const pos = cellFromClientPoint(e.clientX, e.clientY);
+        if (pos) performAction(pos);
+        return;
+      }
     }
     // Best-effort: some browsers throw (e.g. NotFoundError) if the pointer
     // isn't recognized as active at capture time. Losing capture only means
@@ -271,10 +335,12 @@ export function BoardView({
       longPressFired: false,
     };
     pointers.current.set(e.pointerId, pointer);
+    if (pointers.current.size === 1) draggedPan.current = false;
 
     if (pointers.current.size >= 2) {
       // A second finger means pan/zoom — no pending press may mark anymore.
       for (const p of pointers.current.values()) cancelLongPress(p);
+      clearTapGesture();
       // (Re)establish the pinch reference from the two tracked pointers
       // whenever a finger joins — harmless to redo if a 3rd finger lands.
       const [idA, idB] = Array.from(pointers.current.keys());
@@ -285,8 +351,9 @@ export function BoardView({
       return;
     }
 
-    // Press-to-mark: a deliberate hold on one tile marks it as a bomb.
-    if (pressToMark && !disabled) {
+    // Press-to-mark: a deliberate hold on one tile marks it as a bomb. Never
+    // in one-hand mode, where a held finger is a scroll gesture.
+    if (pressToMark && !disabled && !panMode) {
       const startCell = cellFromClientPoint(e.clientX, e.clientY);
       if (startCell) {
         pointer.longPressTimer = setTimeout(() => fireLongPress(pointer, startCell), LONG_PRESS_MS);
@@ -345,6 +412,19 @@ export function BoardView({
         updatePan(clampPan(nextPan, newZoom));
         panLockUntil.current = Date.now() + POST_PAN_LOCK_MS;
       }
+    } else if (panMode) {
+      // One-hand mode: a single finger drags the board directly.
+      const dx = e.clientX - p.x;
+      const dy = e.clientY - p.y;
+      p.x = e.clientX;
+      p.y = e.clientY;
+      if (Math.hypot(p.x - p.startX, p.y - p.startY) > PAN_MOVE_THRESHOLD) {
+        draggedPan.current = true;
+        clearTapGesture();
+      }
+      if (dx !== 0 || dy !== 0) {
+        updatePan(clampPan({ x: panRef.current.x + dx, y: panRef.current.y + dy }));
+      }
     } else {
       p.x = e.clientX;
       p.y = e.clientY;
@@ -381,32 +461,52 @@ export function BoardView({
     const moved = Math.hypot(e.clientX - p.startX, e.clientY - p.startY);
     const duration = Date.now() - p.startTime;
     const withinPanLock = Date.now() < panLockUntil.current;
-    if (!withinPanLock && moved < PAN_MOVE_THRESHOLD && duration < TAP_MAX_DURATION_MS) {
+    const isTap = !withinPanLock && moved < PAN_MOVE_THRESHOLD && duration < TAP_MAX_DURATION_MS;
+    if (panMode) {
+      // In one-hand mode a tap never plays a move — it only feeds the
+      // double-tap-in / triple-tap-out zoom gesture.
+      if (isTap && !draggedPan.current) registerPanModeTap(e.clientX, e.clientY);
+      draggedPan.current = false;
+      return;
+    }
+    if (isTap) {
       const pos = cellFromClientPoint(e.clientX, e.clientY);
       if (pos) performAction(pos);
     }
   }
 
-  function handleWheel(e: React.WheelEvent) {
-    // Always prevent default so neither a mouse wheel nor a trackpad's
-    // synthesized ctrl+wheel pinch ever triggers the browser's own page zoom.
-    e.preventDefault();
+  // React attaches wheel handlers passively, where preventDefault() is ignored
+  // ("Unable to preventDefault inside passive event listener invocation") and
+  // a trackpad pinch still triggers the browser's own page zoom over the
+  // board. Registering it ourselves with { passive: false } is the only way
+  // to actually cancel it.
+  useEffect(() => {
     const el = containerRef.current;
-    const rect = el?.getBoundingClientRect();
-    if (!rect) return;
-    const curZoom = zoomRef.current;
-    const newZoom = clampZoom(curZoom * Math.exp(-e.deltaY * WHEEL_ZOOM_SENSITIVITY));
-    if (newZoom === curZoom) return;
-    const fx = e.clientX - rect.left;
-    const fy = e.clientY - rect.top;
-    const bx = (fx - panRef.current.x) / curZoom;
-    const by = (fy - panRef.current.y) / curZoom;
-    updateZoom(newZoom);
-    updatePan(clampPan({ x: fx - bx * newZoom, y: fy - by * newZoom }, newZoom));
-  }
+    if (!el) return;
+    function onWheel(e: WheelEvent) {
+      e.preventDefault();
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const curZoom = zoomRef.current;
+      const newZoom = clampZoom(curZoom * Math.exp(-e.deltaY * WHEEL_ZOOM_SENSITIVITY));
+      if (newZoom === curZoom) return;
+      const fx = e.clientX - rect.left;
+      const fy = e.clientY - rect.top;
+      const bx = (fx - panRef.current.x) / curZoom;
+      const by = (fy - panRef.current.y) / curZoom;
+      updateZoom(newZoom);
+      updatePan(clampPan({ x: fx - bx * newZoom, y: fy - by * newZoom }, newZoom));
+    }
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [clampPan]);
+
+  // Drop any pending multi-tap timer when the board goes away.
+  useEffect(() => clearTapGesture, []);
 
   function handleContextMenu(e: React.MouseEvent) {
     e.preventDefault();
+    if (panMode) return; // one-hand mode never plays a move
     // Android fires a synthetic contextmenu after a native long-press; if our
     // press-to-mark just marked this tile, a second toggle would un-mark it.
     if (Date.now() - lastLongPressAt.current < LONG_PRESS_CONTEXTMENU_SUPPRESS_MS) return;
@@ -508,7 +608,9 @@ export function BoardView({
   const tint =
     actionMode === 'flag'
       ? { ring: 'var(--md-neon-pink)', wash: 'rgba(255, 60, 172, 0.10)' }
-      : { ring: 'var(--md-neon-cyan)', wash: 'rgba(0, 229, 255, 0.08)' };
+      : actionMode === 'pan'
+        ? { ring: 'var(--md-neon-amber)', wash: 'rgba(255, 176, 32, 0.10)' }
+        : { ring: 'var(--md-neon-cyan)', wash: 'rgba(0, 229, 255, 0.08)' };
 
   // Per-edge "more field beyond the viewport" cues. Recomputed on every pan/
   // zoom/resize render; a side whose true board edge is visible shows nothing,
@@ -528,7 +630,6 @@ export function BoardView({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        onWheel={handleWheel}
         onContextMenu={handleContextMenu}
         className="focus-ring relative min-h-0 w-full flex-1 touch-none overflow-hidden rounded-[var(--md-radius-lg)] border"
         style={{

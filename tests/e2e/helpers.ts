@@ -31,6 +31,11 @@ export async function startMatch(
   await page.getByRole('button', { name: 'Start game' }).click();
 }
 
+/** Picks one of the three board action modes from the floating control dock. */
+export function modeRadio(page: Page, mode: 'One-hand scroll and zoom' | 'Reveal' | 'Mark mine') {
+  return page.getByRole('radio', { name: mode });
+}
+
 export function gridCells(page: Page) {
   return page.locator('[role="gridcell"]');
 }

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { startMatch, gridCells } from './helpers';
+import { startMatch, gridCells, modeRadio } from './helpers';
 
 test('completes a small co-op game (team wins or is eliminated deterministically)', async ({ page }) => {
   test.setTimeout(60_000);
@@ -67,7 +67,7 @@ test('an incorrect flag ends the round immediately', async ({ page }) => {
   const active = () => page.locator('[class*="border-\\[var(--md-accent)\\]"]').first().textContent();
 
   await gridCells(page).nth(0).click(); // generate the board with a safe first reveal
-  await page.getByRole('button', { name: 'Select Flag' }).click();
+  await modeRadio(page, 'Mark mine').click();
 
   const first = await active();
   let rotated = false;

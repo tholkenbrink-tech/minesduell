@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { Icon } from './icons';
 
 export function Button({
   variant = 'primary',
@@ -179,5 +180,32 @@ export function NumberField({
         className="focus-ring rounded-[var(--md-radius-sm)] border border-[var(--md-border)] bg-[var(--md-surface)] px-3 py-2 text-[var(--md-text)]"
       />
     </label>
+  );
+}
+
+/**
+ * The in-match Pause control. It used to ride along inside the movable control
+ * dock over the board; it now lives in the HUD next to the mine counter, which
+ * frees that slot for the one-hand scroll/zoom mode and keeps a destructive-ish
+ * control away from the finger that is playing.
+ */
+export function PauseButton({ onPause, className = '' }: { onPause: () => void; className?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onPause}
+      aria-label="Pause"
+      title="Pause"
+      className={`focus-ring inline-flex shrink-0 items-center justify-center rounded-full transition-colors ${className}`}
+      style={{
+        minHeight: 32,
+        minWidth: 32,
+        background: 'rgba(255,255,255,0.06)',
+        border: '1px solid var(--md-border)',
+        color: 'var(--md-neon-text)',
+      }}
+    >
+      <Icon name="pause" size={14} />
+    </button>
   );
 }

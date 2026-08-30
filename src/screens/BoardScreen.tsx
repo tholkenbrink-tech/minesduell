@@ -14,7 +14,7 @@ import { isArrangementCompatible, renderArrangement, resolveControlAnchor, seatF
 import { PlayerStatusCard } from '../components/hud/PlayerStatusCard';
 import { PlayerRail } from '../components/hud/PlayerRail';
 import { TurnTimer } from '../components/hud/TurnTimer';
-import { Button } from '../components/ui';
+import { Button, PauseButton } from '../components/ui';
 import { PauseMenu } from '../components/PauseMenu';
 import { TurnTransitionOverlay } from '../components/TurnTransitionOverlay';
 import { RaceHandover } from '../components/RaceHandover';
@@ -59,6 +59,7 @@ export function BoardScreen() {
       if (e.key === 'Escape') setPaused(!paused);
       if (e.key.toLowerCase() === 'r') setActionMode('reveal');
       if (e.key.toLowerCase() === 'f') setActionMode('flag');
+      if (e.key.toLowerCase() === 's') setActionMode('pan');
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -93,7 +94,6 @@ export function BoardScreen() {
         rotation={seat?.rotation ?? 0}
         actionMode={actionMode}
         setActionMode={setActionMode}
-        onPause={() => setPaused(true)}
         onAnchorChange={setControlAnchor}
       />
     );
@@ -127,7 +127,10 @@ export function BoardScreen() {
         </div>
         <div className={`flex items-center justify-between gap-2 text-xs sm:gap-3 sm:text-sm ${settings.leftHanded ? 'flex-row-reverse' : ''}`}>
           <PlayerStatusCard player={currentPlayer} stats={run.stats} active showLives compact />
-          <span className="inline-flex items-center gap-1 font-semibold"><Icon name="bombMine" size={12} /> {countRemainingMines(run.board)} left</span>
+          <span className="inline-flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 font-semibold"><Icon name="bombMine" size={12} /> {countRemainingMines(run.board)} left</span>
+            <PauseButton onPause={() => setPaused(true)} />
+          </span>
         </div>
         <div className="relative min-h-0 flex-1">
           <BoardView
@@ -170,6 +173,7 @@ export function BoardScreen() {
             activePlayerIndex={coop.activePlayerIndex}
             showLives
             minesLeft={countRemainingMines(coop.board)}
+            onPause={() => setPaused(true)}
             actionMode={actionMode}
             onAction={handleAction}
             overlay={buildDock(coop.activePlayerIndex)}
@@ -242,6 +246,7 @@ export function BoardScreen() {
           <span className="inline-flex shrink-0 items-center gap-1 font-semibold">
             <Icon name="bombMine" size={12} /> {countRemainingMines(coop.board)} left
           </span>
+          <PauseButton onPause={() => setPaused(true)} className="ml-auto order-last" />
           {settings.coopTeamTimerSeconds > 0 && (
             <div className="w-28 shrink-0">
               <TurnTimer
@@ -317,6 +322,7 @@ export function BoardScreen() {
           activePlayerIndex={duel.activePlayerIndex}
           showLives={duelHasLives(duel.settings)}
           minesLeft={countRemainingMines(duel.board)}
+          onPause={() => setPaused(true)}
           scoreTarget={duelScoreTarget}
           actionMode={actionMode}
           onAction={handleAction}
@@ -386,6 +392,7 @@ export function BoardScreen() {
         <span className="inline-flex shrink-0 items-center gap-1 font-semibold">
           <Icon name="bombMine" size={12} /> {countRemainingMines(duel.board)} left
         </span>
+        <PauseButton onPause={() => setPaused(true)} className="ml-auto order-last" />
         {duel.settings.duelVariant === 'turn-by-moves' && (
           <span className="inline-flex shrink-0 items-center gap-1 font-semibold">
             {duel.settings.duelMaxActionsPerTurn - duel.turnActionsCount} moves left

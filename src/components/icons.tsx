@@ -1,9 +1,10 @@
 import type { SVGProps } from 'react';
 import { usePrefsStore } from '../store/usePrefsStore';
 
-export type IconName = 'reveal' | 'flag' | 'pause' | 'diamond' | 'heart' | 'bombMine' | 'modeDuel' | 'modeRace' | 'modeCoop';
+export type IconName = 'pan' | 'reveal' | 'flag' | 'pause' | 'diamond' | 'heart' | 'bombMine' | 'modeDuel' | 'modeRace' | 'modeCoop';
 
 const CLASSIC: Record<IconName, string> = {
+  pan: '✥',
   reveal: '🔍',
   flag: '🚩',
   pause: '⏸',
@@ -25,6 +26,14 @@ function NeonSvg({ name, ...svgProps }: { name: IconName } & SVGProps<SVGSVGElem
     strokeLinejoin: 'round',
   };
   switch (name) {
+    case 'pan':
+      // Four-way move/scroll arrows — the one-hand "drag the board" mode.
+      return (
+        <svg {...stroke} {...svgProps}>
+          <path d="M12 3v18M3 12h18" />
+          <path d="M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3" />
+        </svg>
+      );
     case 'reveal':
       return (
         <svg {...stroke} {...svgProps}>

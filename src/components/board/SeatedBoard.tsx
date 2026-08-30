@@ -8,6 +8,7 @@ import { TurnTimer } from '../hud/TurnTimer';
 import { PlayerBadge } from '../PlayerBadge';
 import { RotatedGroup } from '../RotatedGroup';
 import { Icon } from '../icons';
+import { PauseButton } from '../ui';
 import { useIsWide } from '../../hooks/useMediaQuery';
 
 const THEME_VAR: Record<Player['theme'], string> = {
@@ -36,6 +37,9 @@ export interface SeatedBoardProps {
   activePlayerIndex: number;
   showLives: boolean;
   minesLeft: number;
+  /** Opens the pause menu. Lives beside the mine counter in each seat's HUD —
+   *  it used to sit in the movable dock over the board. */
+  onPause: () => void;
   actionMode: ActionMode;
   onAction: (kind: 'reveal' | 'flag', pos: Position) => void;
   disabled: boolean;
@@ -103,6 +107,7 @@ function FaceToFaceLayout({
   activePlayerIndex,
   showLives,
   minesLeft,
+  onPause,
   timer,
   scoreTarget,
   boardEl,
@@ -135,6 +140,7 @@ function FaceToFaceLayout({
         active={topActive}
         showLives={showLives}
         minesLeft={minesLeft}
+        onPause={onPause}
         wide={wide}
         flip
         timerSlot={timerFor(players.findIndex((p) => p.id === top.id))}
@@ -152,6 +158,7 @@ function FaceToFaceLayout({
         active={bottomActive}
         showLives={showLives}
         minesLeft={minesLeft}
+        onPause={onPause}
         wide={wide}
         timerSlot={timerFor(players.findIndex((p) => p.id === bottom.id))}
         hasTimer={Boolean(timer)}
@@ -174,6 +181,7 @@ function TableLayout({
   activePlayerIndex,
   showLives,
   minesLeft,
+  onPause,
   timer,
   scoreTarget,
   boardEl,
@@ -241,7 +249,9 @@ function TableLayout({
       >
         <div />
         <div className="flex items-start justify-center">{region('top')}</div>
-        <div />
+        <div className="flex items-start justify-end p-1.5">
+          <PauseButton onPause={onPause} />
+        </div>
         <div className="flex items-center justify-start">{region('left')}</div>
         <div className="relative min-h-0 min-w-0">{boardEl}</div>
         <div className="flex items-center justify-end">{region('right')}</div>
@@ -269,9 +279,13 @@ function TableLayout({
         paddingRight: occupied.has('right') ? 56 : 8,
       }}
     >
-      {/* Reveal/Mark + Pause come from the movable dock over the board; the
-          active seat's corner carries its mines-left and (if any) turn timer. */}
+      {/* The action modes come from the movable dock over the board; the active
+          seat's corner carries its mines-left and (if any) turn timer, and
+          Pause sits clear of both in the screen's top-right gutter. */}
       <div className="relative h-full w-full">{boardEl}</div>
+      <div className="absolute z-20" style={{ top: 6, right: 6 }}>
+        <PauseButton onPause={onPause} />
+      </div>
       {seats.map((s) => {
         const player = players.find((p) => p.id === s.playerId);
         if (!player) return null;
@@ -328,6 +342,7 @@ function NeonHudRow({
   active,
   showLives,
   minesLeft,
+  onPause,
   wide,
   flip,
   timerSlot,
@@ -339,6 +354,7 @@ function NeonHudRow({
   active: boolean;
   showLives: boolean;
   minesLeft: number;
+  onPause: () => void;
   wide: boolean;
   flip?: boolean;
   timerSlot: ReactNode;
@@ -405,6 +421,7 @@ function NeonHudRow({
             {wide ? ' left' : ''}
           </span>
           {hasTimer && <TimerSecondsReadout wide={wide} />}
+          <PauseButton onPause={onPause} />
         </span>
       </div>
       {timerSlot}

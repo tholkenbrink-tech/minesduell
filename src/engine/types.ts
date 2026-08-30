@@ -4,7 +4,9 @@
 
 export type GameMode = 'duel' | 'race' | 'coop';
 
-export type ActionMode = 'reveal' | 'flag';
+/** What a tap on the board does. 'pan' is one-hand mode: taps never touch the
+ *  board, single-finger drags scroll it and multi-taps zoom. */
+export type ActionMode = 'pan' | 'reveal' | 'flag';
 
 export interface Cell {
   mine: boolean;

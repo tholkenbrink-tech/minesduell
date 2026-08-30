@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { startMatch } from './helpers';
+import { startMatch, modeRadio } from './helpers';
 
 // iPhone-sized viewport: the movable control dock behaves the same across
 // devices, but the field-tint + re-anchor UX matters most on phones.
@@ -13,9 +13,9 @@ test('board tint follows the active Reveal/Mark mode', async ({ page }) => {
   const grid = page.getByRole('grid', { name: 'Minesweeper board' });
 
   await expect(grid).toHaveAttribute('data-action-mode', 'reveal');
-  await page.getByRole('button', { name: 'Select Flag' }).click();
+  await modeRadio(page, 'Mark mine').click();
   await expect(grid).toHaveAttribute('data-action-mode', 'flag');
-  await page.getByRole('button', { name: 'Select Reveal' }).click();
+  await modeRadio(page, 'Reveal').click();
   await expect(grid).toHaveAttribute('data-action-mode', 'reveal');
 });
 

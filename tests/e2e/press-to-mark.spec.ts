@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { startMatch, gridCells } from './helpers';
+import { startMatch, gridCells, modeRadio } from './helpers';
 
 // Mirrors LONG_PRESS_MS (350) in BoardView.tsx with headroom for CI jitter.
 const HOLD_MS = 550;
@@ -75,7 +75,7 @@ test('the long press never fires a second (tap) action on release', async ({ pag
 
   // In Mark mode a tap toggles the flag — if pointerup double-fired after the
   // hold, the mark would be removed again immediately.
-  await page.getByRole('button', { name: 'Select Flag' }).click();
+  await modeRadio(page, 'Mark mine').click();
   const { x, y } = await cellCenter(page, 0);
   await firePointer(page, 'pointerdown', x, y);
   await page.waitForTimeout(HOLD_MS);

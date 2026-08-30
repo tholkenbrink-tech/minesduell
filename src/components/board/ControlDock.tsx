@@ -1,10 +1,9 @@
 import { useRef, useState, type ReactNode } from 'react';
 import type { ActionMode } from '../../engine/types';
 import type { ControlAnchor, SeatRotation } from '../../engine/arrangement';
-import { CONTROL_ANCHORS } from '../../engine/arrangement';
+import { CONTROL_ANCHORS, dockIsVertical } from '../../engine/arrangement';
 import { useRotatedSize } from '../../hooks/useRotatedSize';
-import { Icon } from '../icons';
-import { Button } from '../ui';
+import { Icon, type IconName } from '../icons';
 
 export interface ControlDockProps {
   /** Active player's slot (seat/turn index) — the override is saved per slot. */
@@ -16,7 +15,6 @@ export interface ControlDockProps {
   rotation: SeatRotation;
   actionMode: ActionMode;
   setActionMode: (m: ActionMode) => void;
-  onPause: () => void;
   /** Persist a new anchor for this slot (null clears back to the default). */
   onAnchorChange: (slot: number, anchor: ControlAnchor | null) => void;
   /** Optional extras rendered beside the toggle (e.g. a timer or mines-left). */
@@ -48,31 +46,35 @@ const ZONE_ICON: Record<ControlAnchor, string> = {
   'bottom-right': '↘',
 };
 
+/** Distance from the cluster to the edge of the play field, identical on every
+ *  side. It used to add env(safe-area-inset-*) on the top/bottom anchors, but
+ *  the app shell already pads for the notch and home indicator — adding it
+ *  again here pushed the top/bottom docks a finger's width into the board and
+ *  cost visible mine field for no reason. */
+const DOCK_EDGE_GAP = 6;
+
 /** Absolute placement of the cluster within the board-region container per anchor. */
 function anchorWrapperStyle(anchor: ControlAnchor): React.CSSProperties {
-  const padY = 'max(8px, env(safe-area-inset-bottom))';
-  const padYTop = 'max(8px, env(safe-area-inset-top))';
-  const padX = 'max(6px, env(safe-area-inset-left))';
-  const padXR = 'max(6px, env(safe-area-inset-right))';
+  const gap = DOCK_EDGE_GAP;
   switch (anchor) {
     case 'top':
-      return { left: 0, right: 0, top: padYTop, display: 'flex', justifyContent: 'center' };
+      return { left: 0, right: 0, top: gap, display: 'flex', justifyContent: 'center' };
     case 'bottom':
-      return { left: 0, right: 0, bottom: padY, display: 'flex', justifyContent: 'center' };
+      return { left: 0, right: 0, bottom: gap, display: 'flex', justifyContent: 'center' };
     case 'left':
-      return { top: 0, bottom: 0, left: padX, display: 'flex', alignItems: 'center' };
+      return { top: 0, bottom: 0, left: gap, display: 'flex', alignItems: 'center' };
     case 'right':
-      return { top: 0, bottom: 0, right: padXR, display: 'flex', alignItems: 'center' };
+      return { top: 0, bottom: 0, right: gap, display: 'flex', alignItems: 'center' };
     case 'center':
       return { inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' };
     case 'top-left':
-      return { left: padX, top: padYTop };
+      return { left: gap, top: gap };
     case 'top-right':
-      return { right: padXR, top: padYTop };
+      return { right: gap, top: gap };
     case 'bottom-left':
-      return { left: padX, bottom: padY };
+      return { left: gap, bottom: gap };
     case 'bottom-right':
-      return { right: padXR, bottom: padY };
+      return { right: gap, bottom: gap };
   }
 }
 
@@ -90,7 +92,6 @@ export function ControlDock({
   rotation,
   actionMode,
   setActionMode,
-  onPause,
   onAnchorChange,
   extra,
 }: ControlDockProps) {
@@ -138,15 +139,7 @@ export function ControlDock({
     if (target && target !== anchor) onAnchorChange(slotIndex, target);
   }
 
-  // The cluster wants to end up as a vertical strip when docked to the left/right
-  // edge. `rotation` is applied via CSS transform AFTER this layout is chosen, and
-  // a 90/270° rotation swaps the visual width/height axes — so when that swap is
-  // in play, the *pre-rotation* layout must be the opposite of the desired final
-  // shape, or the rotation silently cancels it back out (a vertical stack rotated
-  // 90/270° reads as a horizontal row again).
-  const wantsVerticalStrip = anchor === 'left' || anchor === 'right';
-  const rotationSwapsAxes = rotation === 90 || rotation === 270;
-  const vertical = wantsVerticalStrip !== rotationSwapsAxes;
+  const vertical = dockIsVertical(anchor, rotation);
 
   return (
     <div className="pointer-events-none absolute inset-0 z-20">
@@ -213,9 +206,6 @@ export function ControlDock({
                   backdropFilter: 'blur(6px)',
                 }}
               >
-                <Button variant="ghost" onClick={onPause} aria-label="Pause" className="!min-h-[44px] !min-w-[44px]">
-                  <Icon name="pause" size={17} />
-                </Button>
                 <ActionToggle actionMode={actionMode} setActionMode={setActionMode} vertical={vertical} />
                 {extra && <div className={vertical ? 'py-0.5' : 'px-0.5'}>{extra}</div>}
                 <button
@@ -239,9 +229,32 @@ export function ControlDock({
   );
 }
 
-/** Single unified two-state Reveal/Mark toggle. Both icons are always visible;
- *  clicking anywhere on the toggle flips the mode, or click a specific icon
- *  to select that mode directly. */
+/** The three-way mode selector: one-hand scroll/zoom, Reveal, Mark.
+ *
+ *  It used to be a single <button> wrapping two more <button>s, which is
+ *  invalid HTML — nested interactive elements make the hit-testing and the
+ *  reported accessibility state browser-dependent. This is a proper
+ *  radiogroup of three siblings: exactly one is checked, each is directly
+ *  selectable, and there is no ambiguous "tap the track to cycle" behavior
+ *  now that there are three modes rather than two. */
+const MODE_OPTIONS: {
+  mode: ActionMode;
+  icon: IconName;
+  label: string;
+  color: string;
+  fg: string;
+}[] = [
+  {
+    mode: 'pan',
+    icon: 'pan',
+    label: 'One-hand scroll and zoom',
+    color: 'var(--md-neon-amber)',
+    fg: 'var(--md-accent-contrast)',
+  },
+  { mode: 'reveal', icon: 'reveal', label: 'Reveal', color: 'var(--md-neon-cyan)', fg: 'var(--md-accent-contrast)' },
+  { mode: 'flag', icon: 'flag', label: 'Mark mine', color: 'var(--md-neon-pink)', fg: '#fff' },
+];
+
 function ActionToggle({
   actionMode,
   setActionMode,
@@ -251,74 +264,44 @@ function ActionToggle({
   setActionMode: (m: ActionMode) => void;
   vertical?: boolean;
 }) {
-  const toggleMode = () => setActionMode(actionMode === 'reveal' ? 'flag' : 'reveal');
-
   return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={actionMode === 'flag'}
-      aria-label={actionMode === 'reveal' ? '🔍 Reveal' : '🚩 Flag'}
-      onClick={toggleMode}
-      className="focus-ring flex items-center justify-center gap-1 rounded-full transition-colors"
+    <div
+      role="radiogroup"
+      aria-label="Board action mode"
+      className={`flex items-center justify-center gap-1 rounded-full ${vertical ? 'flex-col' : ''}`}
       style={{
-        minHeight: 44,
-        minWidth: 44,
         padding: '4px 6px',
-        // Neutral track — only the ACTIVE side gets an accent fill below, so
-        // exactly one side is ever colored and the state reads at a glance.
+        // Neutral track — only the ACTIVE option gets an accent fill, so
+        // exactly one is ever colored and the state reads at a glance.
         background: 'rgba(255,255,255,0.06)',
         border: '1px solid rgba(255,255,255,0.12)',
       }}
     >
-      <div className={`flex gap-1 ${vertical ? 'flex-col' : ''}`}>
-        {/* Reveal icon — filled neon-cyan only while active (matches the board's Reveal tint). */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setActionMode('reveal');
-          }}
-          aria-label="Select Reveal"
-          className="flex items-center justify-center rounded-full transition-colors"
-          style={{
-            minHeight: 36,
-            minWidth: 36,
-            background: actionMode === 'reveal' ? 'var(--md-neon-cyan)' : 'transparent',
-            boxShadow:
-              actionMode === 'reveal'
-                ? '0 0 10px color-mix(in srgb, var(--md-neon-cyan) 55%, transparent)'
-                : 'none',
-            color: actionMode === 'reveal' ? 'var(--md-accent-contrast)' : 'var(--md-neon-text-muted)',
-            opacity: actionMode === 'reveal' ? 1 : 0.7,
-          }}
-        >
-          <Icon name="reveal" size={17} />
-        </button>
-        {/* Mark/Flag icon — filled neon-pink only while active (matches the board's Mark tint). */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setActionMode('flag');
-          }}
-          aria-label="Select Flag"
-          className="flex items-center justify-center rounded-full transition-colors"
-          style={{
-            minHeight: 36,
-            minWidth: 36,
-            background: actionMode === 'flag' ? 'var(--md-neon-pink)' : 'transparent',
-            boxShadow:
-              actionMode === 'flag'
-                ? '0 0 10px color-mix(in srgb, var(--md-neon-pink) 55%, transparent)'
-                : 'none',
-            color: actionMode === 'flag' ? '#fff' : 'var(--md-neon-text-muted)',
-            opacity: actionMode === 'flag' ? 1 : 0.7,
-          }}
-        >
-          <Icon name="flag" size={17} />
-        </button>
-      </div>
-    </button>
+      {MODE_OPTIONS.map((opt) => {
+        const on = actionMode === opt.mode;
+        return (
+          <button
+            key={opt.mode}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            aria-label={opt.label}
+            title={opt.label}
+            onClick={() => setActionMode(opt.mode)}
+            className="focus-ring flex items-center justify-center rounded-full transition-colors"
+            style={{
+              minHeight: 36,
+              minWidth: 36,
+              background: on ? opt.color : 'transparent',
+              boxShadow: on ? `0 0 10px color-mix(in srgb, ${opt.color} 55%, transparent)` : 'none',
+              color: on ? opt.fg : 'var(--md-neon-text-muted)',
+              opacity: on ? 1 : 0.7,
+            }}
+          >
+            <Icon name={opt.icon} size={17} />
+          </button>
+        );
+      })}
+    </div>
   );
 }
