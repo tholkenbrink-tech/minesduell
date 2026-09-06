@@ -71,7 +71,11 @@ test('an incorrect flag ends the round immediately', async ({ page }) => {
 
   const first = await active();
   let rotated = false;
-  for (let i = 1; i < 15 && !rotated; i++) {
+  // Walk the WHOLE board, not just the first handful of cells: the opening
+  // reveal's cascade can clear most of that range, leaving too few hidden
+  // tiles to be sure of hitting a safe one, which made this test flaky.
+  const cellCount = await gridCells(page).count();
+  for (let i = 1; i < cellCount && !rotated; i++) {
     const cell = gridCells(page).nth(i);
     if ((await cell.getAttribute('aria-label')) !== 'hidden') continue;
     await cell.click();
