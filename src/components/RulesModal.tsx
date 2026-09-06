@@ -29,10 +29,11 @@ export function RulesModal({ onClose }: { onClose: () => void }) {
             fingers to pan and pinch.
           </p>
           <p>
-            <strong>Moving the controls:</strong> the control bar sits below the board by default, off the play
-            field, so no tile is ever hidden behind it. Drag the ⠿ grip to park it anywhere on the board instead —
-            that choice is remembered per player. A dashed outline marks its home while it is away; drop it anywhere
-            along the bottom middle to send it back.
+            <strong>Moving the controls:</strong> the control bar sits in the info bar above the board by default,
+            off the play field, so no tile is ever hidden behind it and none of the screen is spent on it. Drag the
+            ⠿ grip to park it anywhere on the board instead — that choice is remembered per player. A dashed marker
+            shows its home while it is away; drop it there, or on the middle of the board's top edge, to send it
+            back.
           </p>
           <p>
             <strong>Numbers:</strong> a revealed tile shows how many mines are hiding in its 8 neighboring tiles.

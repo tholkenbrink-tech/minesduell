@@ -38,13 +38,6 @@ const LONG_PRESS_CONTEXTMENU_SUPPRESS_MS = 700;
  *  go: a couple of steps genuinely magnify the field rather than nudging it. */
 const ZOOM_MIN = 0.7;
 const ZOOM_MAX = 2;
-/**
- * Height of the strip kept free under the play field for the control cluster's
- * default (outside the board) home. Exported so the dock positions itself and
- * its drop zones against the same number the board reserves.
- */
-export const DOCK_STRIP_HEIGHT = 56;
-
 /** One step of the dock's zoom buttons. */
 const BUTTON_ZOOM_STEP = 1.35;
 /** Exponential factor applied per wheel-delta pixel; tuned so one mouse-wheel
@@ -682,14 +675,9 @@ export function BoardView({
           </div>
         ))}
       </div>
-      {/* Reserved strip for the control cluster's default home, directly under
-          the play field. It is always kept clear — when the player has moved
-          the cluster onto the board, the dock draws a dashed outline here so
-          the way back is obvious — so the board never resizes as it moves. */}
-      <div aria-hidden className="shrink-0" style={{ height: DOCK_STRIP_HEIGHT }} />
-      {/* The dock spans the play field AND the strip below it, so it can be
-          dragged between the two. It sits outside the grid container for the
-          same reason. */}
+      {/* The dock overlays the play field exactly; its docked home lives in the
+          surrounding layout's HUD bar (see ControlDock), not in a strip of its
+          own, so no board height is spent on it. */}
       {overlay?.(zoomApi)}
     </div>
   );

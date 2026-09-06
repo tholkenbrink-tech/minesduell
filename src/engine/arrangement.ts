@@ -22,6 +22,7 @@ export type SeatRotation = 0 | 90 | 180 | 270;
 export type ControlAnchor =
   | 'docked'
   | 'top'
+  | 'bottom'
   | 'left'
   | 'right'
   | 'center'
@@ -31,17 +32,15 @@ export type ControlAnchor =
   | 'bottom-right';
 
 /**
- * The default home: a reserved strip directly BELOW the play field, outside
- * it. The cluster is handy but it is also opaque, so parking it off the board
- * by default costs nothing and maximizes visible mine field. There is
- * deliberately no inside-the-board bottom-center anchor — two nearly identical
- * bottom-center spots would only make the drag ambiguous, so dropping the
- * cluster at the bottom middle always means "back to the default".
+ * The default home: a slot the surrounding layout reserves for the cluster
+ * OUTSIDE the play field — in practice the empty middle of the HUD bar the
+ * screen already draws. That bar exists either way, so parking the controls in
+ * it costs no height at all and the whole board stays visible. Layouts mark
+ * the slot with `data-dock-home`.
  */
 export const DEFAULT_CONTROL_ANCHOR: ControlAnchor = 'docked';
 
-/** All nine anchors, ordered for a 3x3 picker overlay (corners + edges + the
- *  outside dock, which occupies the bottom-center slot). */
+/** The nine on-board anchors, in 3x3 reading order (see anchorAtPoint). */
 export const CONTROL_ANCHORS: ControlAnchor[] = [
   'top-left',
   'top',
@@ -50,19 +49,73 @@ export const CONTROL_ANCHORS: ControlAnchor[] = [
   'center',
   'right',
   'bottom-left',
-  'docked',
+  'bottom',
   'bottom-right',
 ];
 
-/**
- * Coerces a persisted anchor to a supported one. The removed `'bottom'`
- * (inside the board, bottom-center) migrates to the outside dock, which is
- * where a player who chose it was reaching for anyway; anything unrecognized
- * clears back to the arrangement default.
- */
+const ALL_CONTROL_ANCHORS: ControlAnchor[] = [...CONTROL_ANCHORS, DEFAULT_CONTROL_ANCHOR];
+
+/** Coerces a persisted anchor to a supported one; anything unrecognized clears
+ *  back to the arrangement default. */
 export function migrateControlAnchor(value: unknown): ControlAnchor | null {
-  if (value === 'bottom') return 'docked';
-  return CONTROL_ANCHORS.includes(value as ControlAnchor) ? (value as ControlAnchor) : null;
+  return ALL_CONTROL_ANCHORS.includes(value as ControlAnchor) ? (value as ControlAnchor) : null;
+}
+
+interface Box {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+function contains(point: { x: number; y: number }, box: Box): boolean {
+  return (
+    box.width > 0 &&
+    box.height > 0 &&
+    point.x >= box.left &&
+    point.x <= box.left + box.width &&
+    point.y >= box.top &&
+    point.y <= box.top + box.height
+  );
+}
+
+/**
+ * Which anchor a drop at `point` lands on, given the play field's box and the
+ * home slot's box (null when the layout provides none).
+ *
+ * The field is divided into a 3x3 of drop targets — CONTROL_ANCHORS is already
+ * in that reading order. Two of those nine resolve to the home instead of an
+ * on-board anchor: a drop inside the home slot itself, and the center-column
+ * cell on the home's side of the board. That second rule is what makes
+ * "drag it back to the middle of the edge it came from" work without the
+ * player having to hit a thin bar outside the field. Which cell that is
+ * follows the home slot, so a layout with the bar underneath behaves the
+ * mirror image of one with it on top.
+ *
+ * Pure geometry rather than hit-testing the rendered drop-zone elements: those
+ * only exist once React has committed the drag's first render, so a fast
+ * drag-and-release could otherwise land on nothing and silently snap back.
+ */
+export function anchorAtPoint(
+  point: { x: number; y: number },
+  field: Box,
+  home: Box | null,
+): ControlAnchor | null {
+  if (home && contains(point, home)) return DEFAULT_CONTROL_ANCHOR;
+  if (!contains(point, field)) return null;
+
+  const third = (value: number, size: number) => Math.max(0, Math.min(2, Math.floor((value / size) * 3)));
+  const col = third(point.x - field.left, field.width);
+  const row = third(point.y - field.top, field.height);
+  const cell = CONTROL_ANCHORS[row * 3 + col];
+  return cell === homeSideCell(field, home) ? DEFAULT_CONTROL_ANCHOR : cell;
+}
+
+/** The on-board cell that stands in for "back to the home slot": the top-center
+ *  cell when the home is above the field, the bottom-center one when below. */
+export function homeSideCell(field: Box, home: Box | null): ControlAnchor {
+  const homeAbove = !home || home.top + home.height / 2 < field.top + field.height / 2;
+  return homeAbove ? 'top' : 'bottom';
 }
 
 /**
@@ -94,36 +147,6 @@ export function dockIsVertical(anchor: ControlAnchor, rotation: SeatRotation): b
   const wantsVerticalStrip = VERTICAL_ANCHORS.has(anchor);
   const rotationSwapsAxes = rotation === 90 || rotation === 270;
   return wantsVerticalStrip !== rotationSwapsAxes;
-}
-
-/**
- * Which anchor a drop at `point` lands on, given the dock's box and the height
- * of the reserved strip at its bottom. The play field above the strip is
- * divided into a 3x3 of drop targets (CONTROL_ANCHORS is already in that
- * reading order), and the whole bottom band — the strip plus the bottom-center
- * cell above it — means "back to the default home".
- *
- * Deliberately pure geometry rather than hit-testing the rendered drop-zone
- * elements: those only exist once React has committed the drag's first render,
- * so a fast drag-and-release could land on nothing and silently snap back.
- * Returns null for a release outside the box, which does snap back.
- */
-export function anchorAtPoint(
-  point: { x: number; y: number },
-  rect: { left: number; top: number; width: number; height: number },
-  stripHeight: number,
-): ControlAnchor | null {
-  const { x, y } = point;
-  if (rect.width <= 0 || rect.height <= 0) return null;
-  if (x < rect.left || x > rect.left + rect.width) return null;
-  if (y < rect.top || y > rect.top + rect.height) return null;
-  if (y >= rect.top + rect.height - stripHeight) return DEFAULT_CONTROL_ANCHOR;
-
-  const fieldHeight = Math.max(1, rect.height - stripHeight);
-  const third = (value: number, size: number) => Math.max(0, Math.min(2, Math.floor((value / size) * 3)));
-  const col = third(x - rect.left, rect.width);
-  const row = third(y - rect.top, fieldHeight);
-  return CONTROL_ANCHORS[row * 3 + col];
 }
 
 /** The screen edge a seat's controls naturally dock to when not overridden. */

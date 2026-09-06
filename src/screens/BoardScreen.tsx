@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useMatchStore, type MatchState } from '../store/useMatchStore';
 import { usePrefsStore } from '../store/usePrefsStore';
 import { countRemainingMines } from '../engine/board';
@@ -133,6 +133,7 @@ export function BoardScreen() {
         </div>
         <div className={`flex items-center justify-between gap-2 text-xs sm:gap-3 sm:text-sm ${settings.leftHanded ? 'flex-row-reverse' : ''}`}>
           <PlayerStatusCard player={currentPlayer} stats={run.stats} active showLives compact />
+          <DockHome />
           <span className="inline-flex items-center gap-2">
             <span className="inline-flex items-center gap-1 font-semibold"><Icon name="bombMine" size={12} /> {countRemainingMines(run.board)} left</span>
             {/* Ending the run lives beside Pause rather than in a full-width bar
@@ -260,14 +261,11 @@ export function BoardScreen() {
         />
         {/* Game-info strip: a single scrollable line so it never grows tall
             enough to push the board down or require scrolling to reach. */}
-        <div
-          className={`flex shrink-0 items-center gap-2 overflow-x-auto whitespace-nowrap pb-0.5 text-xs sm:gap-3 sm:text-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${settings.leftHanded ? 'flex-row-reverse' : ''}`}
-        >
+        <InfoStrip reverse={settings.leftHanded} trailing={<PauseButton onPause={() => setPaused(true)} />}>
           <span className="shrink-0 font-semibold">🏆 {coop.teamScore}</span>
           <span className="inline-flex shrink-0 items-center gap-1 font-semibold">
             <Icon name="bombMine" size={12} /> {countRemainingMines(coop.board)} left
           </span>
-          <PauseButton onPause={() => setPaused(true)} className="ml-auto order-last" />
           {settings.coopTeamTimerSeconds > 0 && (
             <div className="w-28 shrink-0">
               <TurnTimer
@@ -278,7 +276,7 @@ export function BoardScreen() {
               />
             </div>
           )}
-        </div>
+        </InfoStrip>
         {pendingSelection && (
           <p className="rounded-[var(--md-radius-md)] bg-[var(--md-cell-flag-bg)] px-3 py-2 text-sm font-semibold">
             Peek reward ready — tap any hidden tile to inspect it before {active.name}'s move.
@@ -409,13 +407,10 @@ export function BoardScreen() {
       />
       {/* Game-info strip: a single scrollable line so it never grows tall
           enough to push the board down or require scrolling to reach. */}
-      <div
-        className={`flex shrink-0 items-center gap-2 overflow-x-auto whitespace-nowrap pb-0.5 text-xs sm:gap-3 sm:text-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${settings.leftHanded ? 'flex-row-reverse' : ''}`}
-      >
+      <InfoStrip reverse={settings.leftHanded} trailing={<PauseButton onPause={() => setPaused(true)} />}>
         <span className="inline-flex shrink-0 items-center gap-1 font-semibold">
           <Icon name="bombMine" size={12} /> {countRemainingMines(duel.board)} left
         </span>
-        <PauseButton onPause={() => setPaused(true)} className="ml-auto order-last" />
         {duel.settings.duelVariant === 'turn-by-moves' && (
           <span className="inline-flex shrink-0 items-center gap-1 font-semibold">
             {duel.settings.duelMaxActionsPerTurn - duel.turnActionsCount} moves left
@@ -433,7 +428,7 @@ export function BoardScreen() {
             />
           </div>
         )}
-      </div>
+      </InfoStrip>
       <div className="relative min-h-0 flex-1">
         <BoardView
           board={duel.board}
@@ -459,6 +454,48 @@ export function BoardScreen() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+/**
+ * The slot the control dock parks in by default. It is deliberately an empty
+ * flex child of a bar the screen already draws: the controls then cost no
+ * board height at all, which is what makes the game playable on a phone held
+ * horizontally. ControlDock finds it by this attribute and portals into it.
+ */
+function DockHome() {
+  return <div data-dock-home className="flex shrink-0 items-center justify-center" />;
+}
+
+/**
+ * The game-info bar above the board: stats on one side, the dock home in the
+ * middle, controls on the other. Only the stats scroll — the dock home must
+ * not sit inside an overflow container, or dragging the cluster out of it onto
+ * the board would clip it mid-gesture.
+ */
+function InfoStrip({
+  children,
+  trailing,
+  reverse,
+}: {
+  children: ReactNode;
+  trailing?: ReactNode;
+  reverse?: boolean;
+}) {
+  return (
+    <div className={`flex shrink-0 items-center gap-2 ${reverse ? 'flex-row-reverse' : ''}`}>
+      <div
+        className={`flex min-w-0 flex-1 basis-0 items-center gap-2 overflow-x-auto whitespace-nowrap pb-0.5 text-xs sm:gap-3 sm:text-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+          reverse ? 'flex-row-reverse' : ''
+        }`}
+      >
+        {children}
+      </div>
+      <DockHome />
+      <div className={`flex flex-1 basis-0 items-center gap-2 ${reverse ? 'justify-start' : 'justify-end'}`}>
+        {trailing}
+      </div>
     </div>
   );
 }

@@ -250,7 +250,7 @@ function TableLayout({
           gridTemplateRows: 'auto minmax(0, 1fr) auto',
         }}
       >
-        <div />
+        <div className="flex items-center justify-center" data-dock-home />
         <div className="flex items-start justify-center">{region('top')}</div>
         <div className="flex items-start justify-end p-1.5">
           <PauseButton onPause={onPause} />
@@ -289,6 +289,13 @@ function TableLayout({
       <div className="absolute z-20" style={{ top: 6, right: 6 }}>
         <PauseButton onPause={onPause} />
       </div>
+      {/* The dock's home for the phone Table shell: the free band across the
+          top, between the two upper corner indicators. */}
+      <div
+        data-dock-home
+        className="absolute z-30 flex items-center justify-center"
+        style={{ top: 4, left: '50%', transform: 'translateX(-50%)' }}
+      />
       {seats.map((s) => {
         const player = players.find((p) => p.id === s.playerId);
         if (!player) return null;
@@ -379,8 +386,15 @@ function NeonHudRow({
       }}
     >
       <div className="flex items-center justify-between gap-2">
+        {/* Only the active seat's row hosts the dock — ControlDock takes the
+            first [data-dock-home] it finds, and the cluster belongs with
+            whoever is playing. */}
+        {active && <div data-dock-home className="order-2 flex shrink-0 items-center justify-center" />}
         <div
-          className={`flex w-fit shrink-0 items-center gap-2 rounded-full py-1 pl-1 pr-3 ${active ? 'md-pulse' : ''}`}
+          // Shrinkable, unlike the other two: on a phone the row has to fit the
+          // control cluster as well, and a truncated name costs less than
+          // pushing the mine counter off the screen.
+          className={`order-1 flex min-w-0 items-center gap-2 rounded-full py-1 pl-1 pr-3 ${active ? 'md-pulse' : ''}`}
           style={{
             background: active ? color : 'rgba(255,255,255,0.06)',
             border: `1px solid ${color}`,
@@ -390,8 +404,11 @@ function NeonHudRow({
           }}
         >
           <PlayerBadge player={player} size={avatar} active={active} />
-          <div className="leading-tight">
-            <div className="md-display whitespace-nowrap font-bold" style={{ fontSize: wide ? 14 : 11, color: textColor }}>
+          <div className="min-w-0 leading-tight">
+            <div
+              className="md-display truncate font-bold"
+              style={{ fontSize: wide ? 14 : 11, color: textColor }}
+            >
               {player.name}
             </div>
             <div
@@ -415,7 +432,7 @@ function NeonHudRow({
             </div>
           </div>
         </div>
-        <span className="flex shrink-0 items-center gap-2.5">
+        <span className="order-3 flex shrink-0 items-center gap-2.5">
           <span
             className="md-display inline-flex items-center gap-1 font-bold text-[var(--md-neon-text)]"
             style={{ fontSize: wide ? 14 : 11 }}

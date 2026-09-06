@@ -11,6 +11,7 @@ import {
   resolveControlAnchor,
   seatForPlayer,
   migrateControlAnchor,
+  CONTROL_ANCHORS,
 } from '../arrangement';
 
 const ids = (n: number) => Array.from({ length: n }, (_, i) => `p${i}`);
@@ -167,12 +168,10 @@ describe('arrangement — control anchor resolution', () => {
     expect(resolveControlAnchor('left', 'bottom')).toBe('left');
   });
 
-  it('migrates the removed inside-the-board bottom anchor to the docked strip', () => {
-    // A player who had picked bottom-center inside the board was reaching for
-    // exactly what the docked strip now is, so their choice carries over
-    // rather than silently resetting.
-    expect(migrateControlAnchor('bottom')).toBe('docked');
-    expect(resolveControlAnchor('bottom' as never, 'top')).toBe('docked');
+  it('keeps every supported anchor, including the docked home, as-is', () => {
+    for (const anchor of [...CONTROL_ANCHORS, 'docked'] as const) {
+      expect(migrateControlAnchor(anchor)).toBe(anchor);
+    }
   });
 
   it('clears an unrecognized saved anchor instead of rendering it', () => {

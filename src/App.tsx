@@ -13,7 +13,15 @@ function App() {
   return (
     <div
       className="flex h-screen flex-col overflow-hidden"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)', paddingTop: 'env(safe-area-inset-top)' }}
+      // All four insets, not just top/bottom: held horizontally, the notch and
+      // the home indicator move to the LEFT and RIGHT edges, and with
+      // viewport-fit=cover the board was being drawn underneath them.
+      style={{
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+        paddingLeft: 'env(safe-area-inset-left)',
+        paddingRight: 'env(safe-area-inset-right)',
+      }}
     >
       <div className="min-h-0 flex-1 overflow-y-auto">
         {screen === 'mode-select' && <ModeSelectScreen />}

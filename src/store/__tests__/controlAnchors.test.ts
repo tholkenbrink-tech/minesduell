@@ -42,10 +42,8 @@ describe('prefs — control anchors (per player slot)', () => {
     expect(anchors[0]).toBe('center');
   });
 
-  it('migrates a saved anchor that a newer build no longer supports', async () => {
-    // 'bottom' (inside the board, bottom-center) was dropped in favor of the
-    // docked strip below the board; 'nope' never existed at all.
-    localStorage.setItem(KEY, JSON.stringify({ controlAnchors: ['bottom', 'nope', 'right', null] }));
+  it('clears a saved anchor that this build does not support', async () => {
+    localStorage.setItem(KEY, JSON.stringify({ controlAnchors: ['docked', 'nope', 'right', null] }));
     const { usePrefsStore } = await import('../usePrefsStore');
     expect(usePrefsStore.getState().controlAnchors).toEqual(['docked', null, 'right', null]);
   });
