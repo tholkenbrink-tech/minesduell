@@ -31,3 +31,13 @@ export function useMediaQuery(query: string): boolean {
 export function useIsWide(): boolean {
   return useMediaQuery('(min-width: 768px)');
 }
+
+/**
+ * True when the viewport is wider than it is tall — a phone held horizontally,
+ * or any desktop window. The control bar's home follows this: across the top
+ * where height is the scarce axis, under the board where it is not, so the
+ * header never has to share its row and start scrolling.
+ */
+export function useIsLandscape(): boolean {
+  return useMediaQuery('(orientation: landscape)');
+}

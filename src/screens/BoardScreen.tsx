@@ -18,6 +18,7 @@ import { Button, ConfirmDialog, HudIconButton, PauseButton } from '../components
 import { PauseMenu } from '../components/PauseMenu';
 import { TurnTransitionOverlay } from '../components/TurnTransitionOverlay';
 import { RaceHandover } from '../components/RaceHandover';
+import { useIsLandscape } from '../hooks/useMediaQuery';
 import { Icon } from '../components/icons';
 
 /** Position of the tile behind the latest mistake, for the brief tile shake. */
@@ -56,6 +57,11 @@ export function BoardScreen() {
 
   const [showConfirm, setShowConfirm] = useState<{ x: number; y: number } | null>(null);
   const [confirmGiveUp, setConfirmGiveUp] = useState(false);
+  // Where the control bar parks. Held horizontally, height is the scarce axis,
+  // so it rides in the header bar that already exists. Held upright there is
+  // height to spare but the header is narrow — sharing that row would squeeze
+  // the stats into a scrolling strip — so it gets its own line under the board.
+  const dockOnTop = useIsLandscape();
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -133,7 +139,7 @@ export function BoardScreen() {
         </div>
         <div className={`flex items-center justify-between gap-2 text-xs sm:gap-3 sm:text-sm ${settings.leftHanded ? 'flex-row-reverse' : ''}`}>
           <PlayerStatusCard player={currentPlayer} stats={run.stats} active showLives compact />
-          <DockHome />
+          {dockOnTop && <DockHome />}
           <span className="inline-flex items-center gap-2">
             <span className="inline-flex items-center gap-1 font-semibold"><Icon name="bombMine" size={12} /> {countRemainingMines(run.board)} left</span>
             {/* Ending the run lives beside Pause rather than in a full-width bar
@@ -156,6 +162,7 @@ export function BoardScreen() {
             onAction={handleAction}
           />
         </div>
+        {!dockOnTop && <DockHome className="w-full" />}
         {paused && <PauseMenu onClose={() => setPaused(false)} />}
         {confirmGiveUp && (
           <ConfirmDialog
@@ -261,7 +268,7 @@ export function BoardScreen() {
         />
         {/* Game-info strip: a single scrollable line so it never grows tall
             enough to push the board down or require scrolling to reach. */}
-        <InfoStrip reverse={settings.leftHanded} trailing={<PauseButton onPause={() => setPaused(true)} />}>
+        <InfoStrip reverse={settings.leftHanded} home={dockOnTop} trailing={<PauseButton onPause={() => setPaused(true)} />}>
           <span className="shrink-0 font-semibold">🏆 {coop.teamScore}</span>
           <span className="inline-flex shrink-0 items-center gap-1 font-semibold">
             <Icon name="bombMine" size={12} /> {countRemainingMines(coop.board)} left
@@ -307,6 +314,7 @@ export function BoardScreen() {
           />
           {turnTransition.active && <TurnTransitionOverlay player={players.find((p) => p.name === turnTransition.playerName)} />}
         </div>
+        {!dockOnTop && <DockHome className="w-full" />}
         {paused && <PauseMenu onClose={() => setPaused(false)} />}
         {showConfirm && (
           <ConfirmReveal
@@ -407,7 +415,7 @@ export function BoardScreen() {
       />
       {/* Game-info strip: a single scrollable line so it never grows tall
           enough to push the board down or require scrolling to reach. */}
-      <InfoStrip reverse={settings.leftHanded} trailing={<PauseButton onPause={() => setPaused(true)} />}>
+      <InfoStrip reverse={settings.leftHanded} home={dockOnTop} trailing={<PauseButton onPause={() => setPaused(true)} />}>
         <span className="inline-flex shrink-0 items-center gap-1 font-semibold">
           <Icon name="bombMine" size={12} /> {countRemainingMines(duel.board)} left
         </span>
@@ -444,6 +452,7 @@ export function BoardScreen() {
         />
         {turnTransition.active && <TurnTransitionOverlay player={players.find((p) => p.name === turnTransition.playerName)} />}
       </div>
+      {!dockOnTop && <DockHome className="w-full" />}
       {paused && <PauseMenu onClose={() => setPaused(false)} />}
       {showConfirm && (
         <ConfirmReveal
@@ -464,8 +473,8 @@ export function BoardScreen() {
  * board height at all, which is what makes the game playable on a phone held
  * horizontally. ControlDock finds it by this attribute and portals into it.
  */
-function DockHome() {
-  return <div data-dock-home className="flex shrink-0 items-center justify-center" />;
+function DockHome({ className = '' }: { className?: string }) {
+  return <div data-dock-home className={`flex shrink-0 items-center justify-center ${className}`} />;
 }
 
 /**
@@ -478,10 +487,15 @@ function InfoStrip({
   children,
   trailing,
   reverse,
+  home,
 }: {
   children: ReactNode;
   trailing?: ReactNode;
   reverse?: boolean;
+  /** Host the control bar's home in the middle of this row (landscape only —
+   *  upright, the row is too narrow to share and the bar lives under the
+   *  board instead). */
+  home?: boolean;
 }) {
   return (
     <div className={`flex shrink-0 items-center gap-2 ${reverse ? 'flex-row-reverse' : ''}`}>
@@ -492,8 +506,8 @@ function InfoStrip({
       >
         {children}
       </div>
-      <DockHome />
-      <div className={`flex flex-1 basis-0 items-center gap-2 ${reverse ? 'justify-start' : 'justify-end'}`}>
+      {home && <DockHome />}
+      <div className={`flex ${home ? 'flex-1 basis-0' : ''} items-center gap-2 ${reverse ? 'justify-start' : 'justify-end'}`}>
         {trailing}
       </div>
     </div>

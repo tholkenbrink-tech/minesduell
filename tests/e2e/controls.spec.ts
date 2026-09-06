@@ -61,22 +61,49 @@ test('dragging the control dock into a corner anchors it there', async ({ page }
   await expect.poll(async () => (await readAnchors(page))?.[0]).toBe('top-left');
 });
 
-test('the cluster starts in the HUD bar above the board, costing no board height', async ({ page }) => {
+test('upright, the cluster starts under the board and leaves the header alone', async ({ page }) => {
   await startMatch(page, { mode: 'Duel', width: 8, height: 8, mines: 5 });
   const grid = page.getByRole('grid', { name: 'Minesweeper board' });
   const cluster = page.getByRole('radiogroup', { name: 'Board action mode' });
-  const home = page.locator('[data-dock-home]');
 
-  // The point of the default: the controls sit in a bar the screen already
-  // draws, entirely above the play field, so they cover no tiles at all.
+  // Held upright there is height to spare but the header row is narrow, so
+  // the bar gets its own line under the board rather than squeezing the stats
+  // into a scrolling strip.
   const gridBox = (await grid.boundingBox())!;
   const clusterBox = (await cluster.boundingBox())!;
-  expect(clusterBox.y + clusterBox.height).toBeLessThanOrEqual(gridBox.y + 1);
+  expect(clusterBox.y).toBeGreaterThanOrEqual(gridBox.y + gridBox.height - 1);
 
-  // ...and it really is inside the home slot, not floating over the board.
-  const homeBox = (await home.boundingBox())!;
+  // It sits in the home slot, not floating over the board.
+  const homeBox = (await page.locator('[data-dock-home]').boundingBox())!;
   expect(clusterBox.y).toBeGreaterThanOrEqual(homeBox.y - 1);
   await expect(page.getByTitle('Controls dock here')).toHaveCount(0);
+});
+
+test.describe('held horizontally', () => {
+  test.use({ viewport: { width: 844, height: 390 } });
+
+  test('the cluster rides in the header bar, costing no board height', async ({ page }) => {
+    await startMatch(page, { mode: 'Duel', width: 8, height: 8, mines: 5 });
+    const grid = page.getByRole('grid', { name: 'Minesweeper board' });
+    const cluster = page.getByRole('radiogroup', { name: 'Board action mode' });
+
+    // Height is the scarce axis here, so the bar shares the row the header
+    // already draws and everything below it is board.
+    const gridBox = (await grid.boundingBox())!;
+    const clusterBox = (await cluster.boundingBox())!;
+    expect(clusterBox.y + clusterBox.height).toBeLessThanOrEqual(gridBox.y + 1);
+  });
+
+  test('"back to the bar" flips to the TOP middle of the board', async ({ page }) => {
+    await startMatch(page, { mode: 'Duel', width: 8, height: 8, mines: 5 });
+    const gridBox = (await page.getByRole('grid', { name: 'Minesweeper board' }).boundingBox())!;
+
+    await dragGripTo(page, gridBox.x + 24, gridBox.y + gridBox.height / 2);
+    await expect.poll(async () => (await readAnchors(page))?.[0]).toBe('left');
+
+    await dragGripTo(page, gridBox.x + gridBox.width / 2, gridBox.y + 24);
+    await expect.poll(async () => (await readAnchors(page))?.[0]).toBe('docked');
+  });
 });
 
 test('moving the cluster onto the board leaves a marker in its home slot', async ({ page }) => {
@@ -89,7 +116,7 @@ test('moving the cluster onto the board leaves a marker in its home slot', async
   await expect(page.getByTitle('Controls dock here')).toBeVisible();
 });
 
-test('dropping the cluster at the top middle returns it to the HUD bar', async ({ page }) => {
+test('"back to the bar" follows the slot: upright, it is the BOTTOM middle', async ({ page }) => {
   await startMatch(page, { mode: 'Duel', width: 8, height: 8, mines: 5 });
   const grid = page.getByRole('grid', { name: 'Minesweeper board' });
   const gridBox = (await grid.boundingBox())!;
@@ -97,29 +124,27 @@ test('dropping the cluster at the top middle returns it to the HUD bar', async (
   await dragGripTo(page, gridBox.x + 24, gridBox.y + 24);
   await expect.poll(async () => (await readAnchors(page))?.[0]).toBe('top-left');
 
-  // Top-center INSIDE the play field means "back to the bar", so the player
-  // never has to hit the slot itself.
-  await dragGripTo(page, gridBox.x + gridBox.width / 2, gridBox.y + 24);
+  // The center cell on the slot's side of the board sends it home, so the
+  // player never has to hit the slot itself.
+  await dragGripTo(page, gridBox.x + gridBox.width / 2, gridBox.y + gridBox.height - 24);
   await expect.poll(async () => (await readAnchors(page))?.[0]).toBe('docked');
   await expect(page.getByTitle('Controls dock here')).toHaveCount(0);
 
-  // Dropping on the slot itself works too.
+  // ...and with the slot below, the TOP middle is an ordinary anchor.
+  await dragGripTo(page, gridBox.x + gridBox.width / 2, gridBox.y + 24);
+  await expect.poll(async () => (await readAnchors(page))?.[0]).toBe('top');
+});
+
+test('dropping the cluster on the home slot itself docks it', async ({ page }) => {
+  await startMatch(page, { mode: 'Duel', width: 8, height: 8, mines: 5 });
+  const gridBox = (await page.getByRole('grid', { name: 'Minesweeper board' }).boundingBox())!;
+
   await dragGripTo(page, gridBox.x + 24, gridBox.y + 24);
   await expect.poll(async () => (await readAnchors(page))?.[0]).toBe('top-left');
+
   const homeBox = (await page.locator('[data-dock-home]').boundingBox())!;
   await dragGripTo(page, homeBox.x + homeBox.width / 2, homeBox.y + homeBox.height / 2);
   await expect.poll(async () => (await readAnchors(page))?.[0]).toBe('docked');
-});
-
-test('the bottom middle of the board is an ordinary anchor again', async ({ page }) => {
-  // It used to mean "go home" back when the bar lived under the board; with
-  // the bar on top, that space belongs to the board.
-  await startMatch(page, { mode: 'Duel', width: 8, height: 8, mines: 5 });
-  const grid = page.getByRole('grid', { name: 'Minesweeper board' });
-  const gridBox = (await grid.boundingBox())!;
-
-  await dragGripTo(page, gridBox.x + gridBox.width / 2, gridBox.y + gridBox.height - 24);
-  await expect.poll(async () => (await readAnchors(page))?.[0]).toBe('bottom');
 });
 
 /** Drags the dock's grip to a page coordinate and releases it there. */
