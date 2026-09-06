@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
-import { Icon } from './icons';
+import { Icon, type IconName } from './icons';
 
 export function Button({
   variant = 'primary',
@@ -188,28 +188,78 @@ export function NumberField({
 }
 
 /**
- * The in-match Pause control. It used to ride along inside the movable control
- * dock over the board; it now lives in the HUD next to the mine counter, which
- * frees that slot for the one-hand scroll/zoom mode and keeps a destructive-ish
- * control away from the finger that is playing.
+ * A round icon control for the in-match HUD strip. Pause used to ride along
+ * inside the movable control dock over the board; it and its neighbours now
+ * live next to the mine counter, which frees dock space for the one-hand
+ * controls and keeps destructive-ish actions away from the playing finger.
  */
-export function PauseButton({ onPause, className = '' }: { onPause: () => void; className?: string }) {
+export function HudIconButton({
+  icon,
+  label,
+  onClick,
+  danger = false,
+  className = '',
+}: {
+  icon: IconName;
+  label: string;
+  onClick: () => void;
+  /** Tints the control red — for actions that end the run/match. */
+  danger?: boolean;
+  className?: string;
+}) {
   return (
     <button
       type="button"
-      onClick={onPause}
-      aria-label="Pause"
-      title="Pause"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
       className={`focus-ring inline-flex shrink-0 items-center justify-center rounded-full transition-colors ${className}`}
       style={{
         minHeight: 32,
         minWidth: 32,
-        background: 'rgba(255,255,255,0.06)',
-        border: '1px solid var(--md-border)',
-        color: 'var(--md-neon-text)',
+        background: danger ? 'color-mix(in srgb, var(--md-danger) 18%, transparent)' : 'rgba(255,255,255,0.06)',
+        border: `1px solid ${danger ? 'color-mix(in srgb, var(--md-danger) 55%, transparent)' : 'var(--md-border)'}`,
+        color: danger ? 'var(--md-danger)' : 'var(--md-neon-text)',
       }}
     >
-      <Icon name="pause" size={14} />
+      <Icon name={icon} size={14} />
     </button>
+  );
+}
+
+export function PauseButton({ onPause, className = '' }: { onPause: () => void; className?: string }) {
+  return <HudIconButton icon="pause" label="Pause" onClick={onPause} className={className} />;
+}
+
+/** Small yes/no modal for an action that cannot be taken back. */
+export function ConfirmDialog({
+  title,
+  confirmLabel,
+  cancelLabel = 'Cancel',
+  danger = false,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  confirmLabel: string;
+  cancelLabel?: string;
+  danger?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div role="alertdialog" aria-modal="true" className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-xs rounded-[var(--md-radius-lg)] border border-[var(--md-border)] bg-[var(--md-surface)] p-5 text-center">
+        <p className="font-semibold">{title}</p>
+        <div className="mt-4 flex gap-2">
+          <Button variant="secondary" className="flex-1" onClick={onCancel}>
+            {cancelLabel}
+          </Button>
+          <Button variant={danger ? 'danger' : 'primary'} className="flex-1" onClick={onConfirm}>
+            {confirmLabel}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }

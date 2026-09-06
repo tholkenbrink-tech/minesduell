@@ -40,3 +40,22 @@ test('lives accept up to 99 and clamp above it', async ({ page }) => {
   await lives.blur();
   await expect(lives).toHaveValue('99');
 });
+
+test('giving up a run asks for confirmation first, and cancel keeps playing', async ({ page }) => {
+  await openRaceConfig(page);
+  await page.getByRole('button', { name: 'Start game' }).click();
+  await page.getByRole('button', { name: 'Start my run' }).click();
+
+  // The full-width bar under the board is gone — the control sits beside Pause.
+  await expect(page.getByRole('button', { name: 'Give up run' })).toBeVisible();
+  await page.getByRole('button', { name: 'Give up run' }).click();
+  await expect(page.getByRole('alertdialog')).toContainText('Give up this run?');
+
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  await expect(page.getByRole('grid', { name: 'Minesweeper board' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Give up run' }).click();
+  await page.getByRole('button', { name: 'Give up', exact: true }).click();
+  await expect(page.getByText(/Hand the device to/)).toBeVisible();
+});

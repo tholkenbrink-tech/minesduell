@@ -14,11 +14,10 @@ import { isArrangementCompatible, renderArrangement, resolveControlAnchor, seatF
 import { PlayerStatusCard } from '../components/hud/PlayerStatusCard';
 import { PlayerRail } from '../components/hud/PlayerRail';
 import { TurnTimer } from '../components/hud/TurnTimer';
-import { Button, PauseButton } from '../components/ui';
+import { Button, ConfirmDialog, HudIconButton, PauseButton } from '../components/ui';
 import { PauseMenu } from '../components/PauseMenu';
 import { TurnTransitionOverlay } from '../components/TurnTransitionOverlay';
 import { RaceHandover } from '../components/RaceHandover';
-import { useIsShort } from '../hooks/useMediaQuery';
 import { Icon } from '../components/icons';
 
 /** Position of the tile behind the latest mistake, for the brief tile shake. */
@@ -56,9 +55,7 @@ export function BoardScreen() {
   const setControlAnchor = usePrefsStore((s) => s.setControlAnchor);
 
   const [showConfirm, setShowConfirm] = useState<{ x: number; y: number } | null>(null);
-  // Landscape phone: every row of chrome costs board. Race folds its full-width
-  // "Give up run" bar into a button in the top row when height is scarce.
-  const shortViewport = useIsShort();
+  const [confirmGiveUp, setConfirmGiveUp] = useState(false);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -138,11 +135,10 @@ export function BoardScreen() {
           <PlayerStatusCard player={currentPlayer} stats={run.stats} active showLives compact />
           <span className="inline-flex items-center gap-2">
             <span className="inline-flex items-center gap-1 font-semibold"><Icon name="bombMine" size={12} /> {countRemainingMines(run.board)} left</span>
-            {shortViewport && (
-              <Button variant="secondary" onClick={giveUpRace} className="!px-3 !py-1.5 !text-xs">
-                Give up run
-              </Button>
-            )}
+            {/* Ending the run lives beside Pause rather than in a full-width bar
+                under the board — that bar cost a row of board on every screen,
+                and most of a phone's height in landscape. */}
+            <HudIconButton icon="endRun" label="Give up run" danger onClick={() => setConfirmGiveUp(true)} />
             <PauseButton onPause={() => setPaused(true)} />
           </span>
         </div>
@@ -159,12 +155,19 @@ export function BoardScreen() {
             onAction={handleAction}
           />
         </div>
-        {!shortViewport && (
-          <Button variant="secondary" onClick={giveUpRace}>
-            Give up run
-          </Button>
-        )}
         {paused && <PauseMenu onClose={() => setPaused(false)} />}
+        {confirmGiveUp && (
+          <ConfirmDialog
+            title="Give up this run?"
+            confirmLabel="Give up"
+            danger
+            onCancel={() => setConfirmGiveUp(false)}
+            onConfirm={() => {
+              setConfirmGiveUp(false);
+              giveUpRace();
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -462,18 +465,6 @@ export function BoardScreen() {
 
 function ConfirmReveal({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
   return (
-    <div role="alertdialog" aria-modal="true" className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-xs rounded-[var(--md-radius-lg)] border border-[var(--md-border)] bg-[var(--md-surface)] p-5 text-center">
-        <p className="font-semibold">Reveal this tile?</p>
-        <div className="mt-4 flex gap-2">
-          <Button variant="secondary" className="flex-1" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button className="flex-1" onClick={onConfirm}>
-            Reveal
-          </Button>
-        </div>
-      </div>
-    </div>
+    <ConfirmDialog title="Reveal this tile?" confirmLabel="Reveal" onCancel={onCancel} onConfirm={onConfirm} />
   );
 }

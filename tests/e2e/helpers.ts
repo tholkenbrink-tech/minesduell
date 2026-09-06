@@ -36,6 +36,12 @@ export function modeRadio(page: Page, mode: 'One-hand scroll and zoom' | 'Reveal
   return page.getByRole('radio', { name: mode });
 }
 
+/** Ends the current Race run through the HUD button and its confirmation. */
+export async function giveUpRun(page: Page) {
+  await page.getByRole('button', { name: 'Give up run' }).click();
+  await page.getByRole('button', { name: 'Give up', exact: true }).click();
+}
+
 export function gridCells(page: Page) {
   return page.locator('[role="gridcell"]');
 }

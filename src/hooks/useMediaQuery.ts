@@ -31,13 +31,3 @@ export function useMediaQuery(query: string): boolean {
 export function useIsWide(): boolean {
   return useMediaQuery('(min-width: 768px)');
 }
-
-/**
- * True when the viewport is too short to spend rows on chrome — in practice a
- * phone held horizontally. The Race screen uses this to fold its full-width
- * "Give up run" bar into a compact button in the top row, handing the height
- * back to the board.
- */
-export function useIsShort(): boolean {
-  return useMediaQuery('(max-height: 520px)');
-}

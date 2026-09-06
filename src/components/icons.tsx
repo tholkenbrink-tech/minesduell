@@ -1,13 +1,14 @@
 import type { SVGProps } from 'react';
 import { usePrefsStore } from '../store/usePrefsStore';
 
-export type IconName = 'pan' | 'reveal' | 'flag' | 'pause' | 'diamond' | 'heart' | 'bombMine' | 'modeDuel' | 'modeRace' | 'modeCoop';
+export type IconName = 'pan' | 'reveal' | 'flag' | 'pause' | 'endRun' | 'diamond' | 'heart' | 'bombMine' | 'modeDuel' | 'modeRace' | 'modeCoop';
 
 const CLASSIC: Record<IconName, string> = {
   pan: '✥',
   reveal: '🔍',
   flag: '🚩',
   pause: '⏸',
+  endRun: '⏹',
   diamond: '💎',
   heart: '❤️',
   bombMine: '💣',
@@ -46,6 +47,13 @@ function NeonSvg({ name, ...svgProps }: { name: IconName } & SVGProps<SVGSVGElem
         <svg {...stroke} {...svgProps}>
           <line x1="5" y1="3" x2="5" y2="21" />
           <path d="M5 4.5c3-2 6-2 9 0s6 2 9 0v9c-3 2-6 2-9 0s-6-2-9 0z" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case 'endRun':
+      // Stop square — ends the run in progress.
+      return (
+        <svg {...stroke} {...svgProps}>
+          <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none" />
         </svg>
       );
     case 'pause':
