@@ -34,12 +34,20 @@ describe('prefs — control anchors (per player slot)', () => {
   });
 
   it('grows the list if a later slot is set on a shorter legacy array', async () => {
-    localStorage.setItem(KEY, JSON.stringify({ controlAnchors: ['bottom'] }));
+    localStorage.setItem(KEY, JSON.stringify({ controlAnchors: ['center'] }));
     const { usePrefsStore } = await import('../usePrefsStore');
     usePrefsStore.getState().setControlAnchor(3, 'left');
     const anchors = usePrefsStore.getState().controlAnchors;
     expect(anchors[3]).toBe('left');
-    expect(anchors[0]).toBe('bottom');
+    expect(anchors[0]).toBe('center');
+  });
+
+  it('migrates a saved anchor that a newer build no longer supports', async () => {
+    // 'bottom' (inside the board, bottom-center) was dropped in favor of the
+    // docked strip below the board; 'nope' never existed at all.
+    localStorage.setItem(KEY, JSON.stringify({ controlAnchors: ['bottom', 'nope', 'right', null] }));
+    const { usePrefsStore } = await import('../usePrefsStore');
+    expect(usePrefsStore.getState().controlAnchors).toEqual(['docked', null, 'right', null]);
   });
 
   it('migrates legacy prefs saved before the field existed', async () => {

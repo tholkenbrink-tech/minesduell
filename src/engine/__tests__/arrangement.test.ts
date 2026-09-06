@@ -10,6 +10,7 @@ import {
   renderArrangement,
   resolveControlAnchor,
   seatForPlayer,
+  migrateControlAnchor,
 } from '../arrangement';
 
 const ids = (n: number) => Array.from({ length: n }, (_, i) => `p${i}`);
@@ -144,24 +145,40 @@ describe('arrangement — eliminated players keep their seat', () => {
 
 describe('arrangement — control anchor resolution', () => {
   it('defaults an unset anchor to the active seat side', () => {
-    // Side-by-side seats everyone at the bottom → the natural anchor is bottom.
-    expect(resolveControlAnchor(null, 'bottom')).toBe('bottom');
+    // Side-by-side seats everyone at the bottom → the natural home is the
+    // docked strip below the board, off the play field entirely.
+    expect(resolveControlAnchor(null, 'bottom')).toBe('docked');
     // Table seat sides map to their own edge so controls dock beside the player.
     expect(resolveControlAnchor(null, 'right')).toBe('right');
     expect(resolveControlAnchor(null, 'top')).toBe('top');
     expect(resolveControlAnchor(null, 'left')).toBe('left');
   });
 
-  it('falls back to bottom when there is no seat', () => {
-    expect(resolveControlAnchor(null, undefined)).toBe('bottom');
-    expect(resolveControlAnchor(undefined, undefined)).toBe('bottom');
+  it('falls back to the docked strip when there is no seat', () => {
+    expect(resolveControlAnchor(null, undefined)).toBe('docked');
+    expect(resolveControlAnchor(undefined, undefined)).toBe('docked');
   });
 
   it('lets an explicit user override win everywhere, over any seat side', () => {
     // The whole point of the movable dock: the saved choice beats the default,
     // regardless of which seat is active (Face-to-Face / Table included).
     expect(resolveControlAnchor('center', 'right')).toBe('center');
-    expect(resolveControlAnchor('bottom', 'top')).toBe('bottom');
+    expect(resolveControlAnchor('top-right', 'top')).toBe('top-right');
     expect(resolveControlAnchor('left', 'bottom')).toBe('left');
+  });
+
+  it('migrates the removed inside-the-board bottom anchor to the docked strip', () => {
+    // A player who had picked bottom-center inside the board was reaching for
+    // exactly what the docked strip now is, so their choice carries over
+    // rather than silently resetting.
+    expect(migrateControlAnchor('bottom')).toBe('docked');
+    expect(resolveControlAnchor('bottom' as never, 'top')).toBe('docked');
+  });
+
+  it('clears an unrecognized saved anchor instead of rendering it', () => {
+    expect(migrateControlAnchor('nonsense')).toBeNull();
+    expect(migrateControlAnchor(null)).toBeNull();
+    // ...which then falls through to the seat default.
+    expect(resolveControlAnchor('nonsense' as never, 'right')).toBe('right');
   });
 });

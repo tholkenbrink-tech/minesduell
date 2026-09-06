@@ -20,7 +20,7 @@ export type SeatRotation = 0 | 90 | 180 | 270;
  * spot for the arrangement"; any explicit value is a user override.
  */
 export type ControlAnchor =
-  | 'bottom'
+  | 'docked'
   | 'top'
   | 'left'
   | 'right'
@@ -30,7 +30,18 @@ export type ControlAnchor =
   | 'bottom-left'
   | 'bottom-right';
 
-/** All nine anchors, ordered for a 3x3 picker overlay (corners + edges + center). */
+/**
+ * The default home: a reserved strip directly BELOW the play field, outside
+ * it. The cluster is handy but it is also opaque, so parking it off the board
+ * by default costs nothing and maximizes visible mine field. There is
+ * deliberately no inside-the-board bottom-center anchor — two nearly identical
+ * bottom-center spots would only make the drag ambiguous, so dropping the
+ * cluster at the bottom middle always means "back to the default".
+ */
+export const DEFAULT_CONTROL_ANCHOR: ControlAnchor = 'docked';
+
+/** All nine anchors, ordered for a 3x3 picker overlay (corners + edges + the
+ *  outside dock, which occupies the bottom-center slot). */
 export const CONTROL_ANCHORS: ControlAnchor[] = [
   'top-left',
   'top',
@@ -39,9 +50,20 @@ export const CONTROL_ANCHORS: ControlAnchor[] = [
   'center',
   'right',
   'bottom-left',
-  'bottom',
+  'docked',
   'bottom-right',
 ];
+
+/**
+ * Coerces a persisted anchor to a supported one. The removed `'bottom'`
+ * (inside the board, bottom-center) migrates to the outside dock, which is
+ * where a player who chose it was reaching for anyway; anything unrecognized
+ * clears back to the arrangement default.
+ */
+export function migrateControlAnchor(value: unknown): ControlAnchor | null {
+  if (value === 'bottom') return 'docked';
+  return CONTROL_ANCHORS.includes(value as ControlAnchor) ? (value as ControlAnchor) : null;
+}
 
 /**
  * Anchors that lay the control cluster out as a vertical strip: the left/right
@@ -74,9 +96,39 @@ export function dockIsVertical(anchor: ControlAnchor, rotation: SeatRotation): b
   return wantsVerticalStrip !== rotationSwapsAxes;
 }
 
+/**
+ * Which anchor a drop at `point` lands on, given the dock's box and the height
+ * of the reserved strip at its bottom. The play field above the strip is
+ * divided into a 3x3 of drop targets (CONTROL_ANCHORS is already in that
+ * reading order), and the whole bottom band — the strip plus the bottom-center
+ * cell above it — means "back to the default home".
+ *
+ * Deliberately pure geometry rather than hit-testing the rendered drop-zone
+ * elements: those only exist once React has committed the drag's first render,
+ * so a fast drag-and-release could land on nothing and silently snap back.
+ * Returns null for a release outside the box, which does snap back.
+ */
+export function anchorAtPoint(
+  point: { x: number; y: number },
+  rect: { left: number; top: number; width: number; height: number },
+  stripHeight: number,
+): ControlAnchor | null {
+  const { x, y } = point;
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  if (x < rect.left || x > rect.left + rect.width) return null;
+  if (y < rect.top || y > rect.top + rect.height) return null;
+  if (y >= rect.top + rect.height - stripHeight) return DEFAULT_CONTROL_ANCHOR;
+
+  const fieldHeight = Math.max(1, rect.height - stripHeight);
+  const third = (value: number, size: number) => Math.max(0, Math.min(2, Math.floor((value / size) * 3)));
+  const col = third(x - rect.left, rect.width);
+  const row = third(y - rect.top, fieldHeight);
+  return CONTROL_ANCHORS[row * 3 + col];
+}
+
 /** The screen edge a seat's controls naturally dock to when not overridden. */
 const SEAT_ANCHOR: Record<SeatPosition, ControlAnchor> = {
-  bottom: 'bottom',
+  bottom: DEFAULT_CONTROL_ANCHOR,
   right: 'right',
   top: 'top',
   left: 'left',
@@ -85,15 +137,16 @@ const SEAT_ANCHOR: Record<SeatPosition, ControlAnchor> = {
 /**
  * Resolves where the active player's control cluster sits. A per-slot user
  * override (persisted in prefs) wins everywhere; otherwise it falls back to the
- * active seat's natural edge — which is `bottom` for side-by-side (all seats sit
- * at the bottom) and the seat's own side for the Face-to-Face / Table shells.
+ * active seat's natural spot — the outside dock for side-by-side (all seats sit
+ * at the bottom) and the seat's own edge for the Face-to-Face / Table shells.
  */
 export function resolveControlAnchor(
   userAnchor: ControlAnchor | null | undefined,
   activeSeatPosition: SeatPosition | undefined,
 ): ControlAnchor {
-  if (userAnchor) return userAnchor;
-  return activeSeatPosition ? SEAT_ANCHOR[activeSeatPosition] : 'bottom';
+  const migrated = migrateControlAnchor(userAnchor);
+  if (migrated) return migrated;
+  return activeSeatPosition ? SEAT_ANCHOR[activeSeatPosition] : DEFAULT_CONTROL_ANCHOR;
 }
 
 /** Clockwise rotation (deg) applied to a seat's player-facing content so it

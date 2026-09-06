@@ -26,7 +26,13 @@ export function RulesModal({ onClose }: { onClose: () => void }) {
             <strong>One-hand mode:</strong> the ✥ arrows button lets a single finger drag the board around, and adds
             − / + zoom buttons beside it. It is a switch, not a mode — tapping still reveals and a press-and-hold
             still marks while it is on, so you can play and move around with the same thumb. With it off, use two
-            fingers to pan and pinch. Drag the ⠿ grip to move the control cluster anywhere around the board.
+            fingers to pan and pinch.
+          </p>
+          <p>
+            <strong>Moving the controls:</strong> the control bar sits below the board by default, off the play
+            field, so no tile is ever hidden behind it. Drag the ⠿ grip to park it anywhere on the board instead —
+            that choice is remembered per player. A dashed outline marks its home while it is away; drop it anywhere
+            along the bottom middle to send it back.
           </p>
           <p>
             <strong>Numbers:</strong> a revealed tile shows how many mines are hiding in its 8 neighboring tiles.

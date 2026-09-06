@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CONTROL_ANCHORS, dockIsVertical, type ControlAnchor } from '../arrangement';
 
-const HORIZONTAL_ANCHORS: ControlAnchor[] = ['top', 'bottom', 'center'];
+const HORIZONTAL_ANCHORS: ControlAnchor[] = ['top', 'docked', 'center'];
 const VERTICAL_ANCHORS = CONTROL_ANCHORS.filter((a) => !HORIZONTAL_ANCHORS.includes(a));
 
 describe('dockIsVertical', () => {

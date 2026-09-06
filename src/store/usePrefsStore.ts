@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { readJSON, writeJSON, STORAGE_KEYS } from '../engine/persistence';
-import type { ControlAnchor } from '../engine/arrangement';
+import { migrateControlAnchor, type ControlAnchor } from '../engine/arrangement';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 
@@ -68,6 +68,16 @@ interface PrefsStore extends Prefs {
   setControlAnchor: (slot: number, anchor: ControlAnchor | null) => void;
 }
 
+/** Reads saved preferences, coercing any anchor that a newer build no longer
+ *  supports (see migrateControlAnchor) rather than rendering it as garbage. */
+function restorePrefs(): Partial<Prefs> {
+  const saved = readJSON<Partial<Prefs>>(STORAGE_KEYS.preferences, {});
+  if (Array.isArray(saved.controlAnchors)) {
+    saved.controlAnchors = saved.controlAnchors.map(migrateControlAnchor);
+  }
+  return saved;
+}
+
 function persist(prefs: Prefs) {
   writeJSON(STORAGE_KEYS.preferences, prefs);
 }
@@ -76,7 +86,7 @@ export const usePrefsStore = create<PrefsStore>((set, get) => ({
   // Merge onto defaults so preferences saved before a new field existed (e.g.
   // controlAnchors) still get a valid value rather than `undefined`.
   ...DEFAULT_PREFS,
-  ...readJSON<Partial<Prefs>>(STORAGE_KEYS.preferences, {}),
+  ...restorePrefs(),
   setPref: (key, value) => {
     set({ [key]: value } as Partial<PrefsStore>);
     persist({ ...get(), [key]: value });

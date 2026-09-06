@@ -23,7 +23,8 @@ test('dragging the control dock re-anchors it and persists per player slot', asy
   await startMatch(page, { mode: 'Duel', width: 8, height: 8, mines: 5 });
   const grid = page.getByRole('grid', { name: 'Minesweeper board' });
 
-  // Default: slot 0 has no explicit override (renders at the natural bottom).
+  // Default: slot 0 has no explicit override (renders in the docked strip
+  // below the board).
   expect((await readAnchors(page))?.[0] ?? null).toBeNull();
 
   const grip = page.getByRole('button', { name: 'Move controls' });
@@ -57,3 +58,61 @@ test('dragging the control dock into a corner anchors it there', async ({ page }
 
   await expect.poll(async () => (await readAnchors(page))?.[0]).toBe('top-left');
 });
+
+test('the cluster starts docked below the board, off the play field', async ({ page }) => {
+  await startMatch(page, { mode: 'Duel', width: 8, height: 8, mines: 5 });
+  const grid = page.getByRole('grid', { name: 'Minesweeper board' });
+  const cluster = page.getByRole('radiogroup', { name: 'Board action mode' });
+
+  // The whole point of the default: the controls cover no tiles at all.
+  const gridBox = (await grid.boundingBox())!;
+  const clusterBox = (await cluster.boundingBox())!;
+  expect(clusterBox.y).toBeGreaterThanOrEqual(gridBox.y + gridBox.height);
+
+  // Nothing to guide the player back while it is already home.
+  await expect(page.getByText('Controls dock here')).toHaveCount(0);
+});
+
+test('moving the cluster onto the board leaves a dashed marker in its home', async ({ page }) => {
+  await startMatch(page, { mode: 'Duel', width: 8, height: 8, mines: 5 });
+  const grid = page.getByRole('grid', { name: 'Minesweeper board' });
+  const gridBox = (await grid.boundingBox())!;
+
+  await dragGripTo(page, gridBox.x + 24, gridBox.y + 24);
+  await expect.poll(async () => (await readAnchors(page))?.[0]).toBe('top-left');
+  await expect(page.getByText('Controls dock here')).toBeVisible();
+});
+
+test('dropping the cluster at the bottom middle returns it to the docked default', async ({ page }) => {
+  await startMatch(page, { mode: 'Duel', width: 8, height: 8, mines: 5 });
+  const grid = page.getByRole('grid', { name: 'Minesweeper board' });
+  const gridBox = (await grid.boundingBox())!;
+
+  await dragGripTo(page, gridBox.x + 24, gridBox.y + 24);
+  await expect.poll(async () => (await readAnchors(page))?.[0]).toBe('top-left');
+
+  // Bottom-center INSIDE the play field also means "go home" — there is no
+  // inside-the-board bottom anchor to be ambiguous with any more.
+  await dragGripTo(page, gridBox.x + gridBox.width / 2, gridBox.y + gridBox.height - 24);
+  await expect.poll(async () => (await readAnchors(page))?.[0]).toBe('docked');
+
+  // ...and so does the strip below the board.
+  await dragGripTo(page, gridBox.x + 24, gridBox.y + 24);
+  await expect.poll(async () => (await readAnchors(page))?.[0]).toBe('top-left');
+  await dragGripTo(page, gridBox.x + gridBox.width / 2, gridBox.y + gridBox.height + 24);
+  await expect.poll(async () => (await readAnchors(page))?.[0]).toBe('docked');
+  await expect(page.getByText('Controls dock here')).toHaveCount(0);
+});
+
+/** Drags the dock's grip to a page coordinate and releases it there. */
+async function dragGripTo(page: import('@playwright/test').Page, x: number, y: number) {
+  const grip = page.getByRole('button', { name: 'Move controls' });
+  // The cluster glides to a new anchor over ~160ms; hover() waits for it to
+  // stop moving, so the grab below lands on the grip and not on where it was.
+  await grip.hover();
+  const gb = (await grip.boundingBox())!;
+  await page.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(x, y, { steps: 10 });
+  await page.mouse.up();
+}
