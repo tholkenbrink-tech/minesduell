@@ -8,7 +8,7 @@ const CLASSIC: Record<IconName, string> = {
   reveal: '🔍',
   flag: '🚩',
   pause: '⏸',
-  endRun: '⏹',
+  endRun: '🚪',
   diamond: '💎',
   heart: '❤️',
   bombMine: '💣',
@@ -50,10 +50,12 @@ function NeonSvg({ name, ...svgProps }: { name: IconName } & SVGProps<SVGSVGElem
         </svg>
       );
     case 'endRun':
-      // Stop square — ends the run in progress.
+      // Exit arrow leaving a bracket — "leave this run". A filled stop square
+      // in a round red button reads as a record button instead.
       return (
         <svg {...stroke} {...svgProps}>
-          <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none" />
+          <path d="M14 4H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7" />
+          <path d="M17 8l4 4-4 4M21 12H10" />
         </svg>
       );
     case 'pause':
