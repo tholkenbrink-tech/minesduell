@@ -49,6 +49,7 @@ export function BoardScreen() {
   const peekAt = useMatchStore((s) => s.peekAt);
   const dismissPeek = useMatchStore((s) => s.dismissPeek);
   const lastEvents = useMatchStore((s) => s.lastEvents);
+  const endHold = useMatchStore((s) => s.endHold);
   const tileSizePref = usePrefsStore((s) => s.tileSize);
   const controlAnchors = usePrefsStore((s) => s.controlAnchors);
   const oneFingerScroll = usePrefsStore((s) => s.oneFingerScroll);
@@ -62,6 +63,9 @@ export function BoardScreen() {
   // height to spare but the header is narrow — sharing that row would squeeze
   // the stats into a scrolling strip — so it gets its own line under the board.
   const dockOnTop = useIsLandscape();
+  // The round is over and its board is being held on screen (END_HOLD_MS) so
+  // the losing move can actually be read. Nothing is playable during it.
+  const holding = endHold !== null;
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -127,8 +131,11 @@ export function BoardScreen() {
 
   if (mode === 'race') {
     const raceState = match as RaceState;
-    const currentPlayer = players[raceState.currentIndex];
-    if (raceState.phase === 'handover') {
+    // While holding, keep the finished player's run on screen — the engine has
+    // already advanced to the next player, whose board is still blank.
+    const shownIndex = endHold?.raceRunIndex ?? raceState.currentIndex;
+    const currentPlayer = players[shownIndex];
+    if (raceState.phase === 'handover' && !holding) {
       return <RaceHandover player={currentPlayer} onStart={startRaceRun} />;
     }
     const run = raceState.runs[currentPlayer.id];
@@ -145,7 +152,9 @@ export function BoardScreen() {
             {/* Ending the run lives beside Pause rather than in a full-width bar
                 under the board — that bar cost a row of board on every screen,
                 and most of a phone's height in landscape. */}
-            <HudIconButton icon="endRun" label="Give up run" danger onClick={() => setConfirmGiveUp(true)} />
+            {!holding && (
+              <HudIconButton icon="endRun" label="Give up run" danger onClick={() => setConfirmGiveUp(true)} />
+            )}
             <PauseButton onPause={() => setPaused(true)} />
           </span>
         </div>
@@ -156,7 +165,7 @@ export function BoardScreen() {
             activePlayerId={currentPlayer.id}
             actionMode={actionMode}
             oneFingerScroll={oneFingerScroll}
-            disabled={paused}
+            disabled={paused || holding}
             tileSizePref={tileSizePref}
             overlay={buildDock(raceState.currentIndex)}
             onAction={handleAction}
@@ -206,7 +215,7 @@ export function BoardScreen() {
             oneFingerScroll={oneFingerScroll}
             onAction={handleAction}
             overlay={buildDock(coop.activePlayerIndex)}
-            disabled={paused || turnTransition.active || Boolean(peekResolved)}
+            disabled={paused || holding || turnTransition.active || Boolean(peekResolved)}
             tileSizePref={tileSizePref}
             mistakePos={mistakePosFromEvents(lastEvents)}
             timer={
@@ -304,7 +313,7 @@ export function BoardScreen() {
             activePlayerId={active.id}
             actionMode={actionMode}
             oneFingerScroll={oneFingerScroll}
-            disabled={paused || turnTransition.active || Boolean(peekResolved)}
+            disabled={paused || holding || turnTransition.active || Boolean(peekResolved)}
             tileSizePref={tileSizePref}
             mistakePos={mistakePosFromEvents(lastEvents)}
             peekPosition={coop.pendingPeek && coop.pendingPeek.position.x !== -1 ? coop.pendingPeek.position : null}
@@ -356,7 +365,7 @@ export function BoardScreen() {
           oneFingerScroll={oneFingerScroll}
           onAction={handleAction}
           overlay={buildDock(duel.activePlayerIndex)}
-          disabled={paused || turnTransition.active}
+          disabled={paused || holding || turnTransition.active}
           tileSizePref={tileSizePref}
           mistakePos={mistakePosFromEvents(lastEvents)}
           timer={
@@ -444,7 +453,7 @@ export function BoardScreen() {
           activePlayerId={active.id}
           actionMode={actionMode}
           oneFingerScroll={oneFingerScroll}
-          disabled={paused || turnTransition.active}
+          disabled={paused || holding || turnTransition.active}
           tileSizePref={tileSizePref}
           mistakePos={mistakePosFromEvents(lastEvents)}
           overlay={buildDock(duel.activePlayerIndex)}

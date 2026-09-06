@@ -124,6 +124,13 @@ interface MatchStore {
   feed: FeedEvent[];
   turnTransition: TurnTransition;
   timerState: TimerState | null;
+  /**
+   * Set while the just-ended board is held on screen so the player can see what
+   * went wrong before the handover/results screen takes over. `screen` is where
+   * to go when the hold expires; `raceRunIndex` is the run to keep showing,
+   * since finishing a race run has already advanced to the next player.
+   */
+  endHold: { screen: Screen; raceRunIndex: number | null } | null;
 
   goToModeSelect: () => void;
   selectMode: (mode: GameMode) => void;
@@ -318,6 +325,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
   lastEvents: [],
   feed: [],
   turnTransition: { active: false, playerName: '' },
+  endHold: null,
   timerState: null,
   ...restoreActiveMatch(),
 
@@ -351,6 +359,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
       actionMode: 'reveal' as const,
       feed: [],
       timerState: null,
+      endHold: null,
     };
     set(next);
     persistActive({ ...get(), ...next });
@@ -371,7 +380,9 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
 
   reveal: (pos) => {
     const { match, mode, players, paused } = get();
-    if (!match || paused) return;
+    // A finished round is frozen while its board is held on screen; the UI
+    // disables the board too, but the store must not depend on that.
+    if (!match || paused || get().endHold) return;
     if (mode === 'duel') {
       const before = (match as DuelState).activePlayerIndex;
       const { state, events } = applyDuelReveal(match as DuelState, pos);
@@ -398,7 +409,9 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
 
   flag: (pos) => {
     const { match, mode, players, paused } = get();
-    if (!match || paused) return;
+    // A finished round is frozen while its board is held on screen; the UI
+    // disables the board too, but the store must not depend on that.
+    if (!match || paused || get().endHold) return;
     if (mode === 'duel') {
       const before = (match as DuelState).activePlayerIndex;
       const { state, events } = applyDuelFlag(match as DuelState, pos);
@@ -434,6 +447,9 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
   giveUpRace: () => {
     const { match, mode, players } = get();
     if (mode !== 'race' || !match) return;
+    // Only a run in progress can be given up — without this, tapping it during
+    // the end-of-run hold would finish the *next* player's run too.
+    if ((match as RaceState).phase !== 'running') return;
     const state = finishRaceRun(match as RaceState, 'gave-up');
     const screen: Screen = state.phase === 'results' ? 'results' : 'board';
     set({ match: { ...state }, screen });
@@ -458,7 +474,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
 
   expireTimer: () => {
     const { match, mode, players } = get();
-    if (!match) return;
+    if (!match || get().endHold) return;
     if (mode === 'duel') {
       const before = (match as DuelState).activePlayerIndex;
       const { state, events } = handleDuelTimerExpired(match as DuelState);
@@ -484,7 +500,7 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     else if (mode === 'coop') match = createCoopMatch(settings, players, seed);
     else match = createDuelMatch(settings, players, seed);
     const seats = defaultSeats(settings.arrangement, players.map((p) => p.id));
-    set({ match, seats, seedBase: seed, screen: 'board', paused: false, feed: [], timerState: null });
+    set({ match, seats, seedBase: seed, screen: 'board', paused: false, feed: [], timerState: null, endHold: null });
     persistActive(get());
   },
 
@@ -500,12 +516,12 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
     else if (mode === 'coop') match = createCoopMatch(settings, players, seed);
     else match = createDuelMatch(settings, players, seed);
     const seats = defaultSeats(settings.arrangement, players.map((p) => p.id));
-    set({ match, seats, seedBase: seed, screen: 'board', paused: false, feed: [], timerState: null });
+    set({ match, seats, seedBase: seed, screen: 'board', paused: false, feed: [], timerState: null, endHold: null });
     persistActive(get());
   },
 
   clearActiveMatch: () => {
-    set({ match: null, screen: 'mode-select', feed: [] });
+    set({ match: null, screen: 'mode-select', feed: [], endHold: null });
     removeKey(STORAGE_KEYS.activeMatch);
   },
 }));
@@ -513,6 +529,13 @@ export const useMatchStore = create<MatchStore>((set, get) => ({
 /** How long the "who's playing now" turn-switch overlay stays on screen —
  *  long enough for everyone at the table to register whose turn it is. */
 export const TURN_TRANSITION_DURATION_MS = 1800;
+
+/**
+ * How long the finished board stays on screen before the handover/results
+ * screen replaces it. Ending a round used to cut straight to the next step,
+ * which made the mistake that ended it impossible to actually look at.
+ */
+export const END_HOLD_MS = 3000;
 
 function triggerTurnTransition(
   set: (partial: Partial<MatchStore>) => void,
@@ -564,6 +587,29 @@ function applyResult(
   const feed = built
     ? [{ id: ++feedSeq, ts: Date.now(), ...built }, ...get().feed].slice(0, FEED_MAX)
     : get().feed;
+
+  // The round just ended: keep the board — mine, misflag and all — on screen
+  // for a beat instead of cutting straight to the next step, then advance.
+  const justEnded = match.mode === 'race' ? match.phase !== 'running' : match.status !== 'playing';
+  if (justEnded && !get().endHold) {
+    const endHold = {
+      screen,
+      // finishRaceRun has already moved on to the next player, so remember
+      // whose run this actually was.
+      raceRunIndex:
+        match.mode === 'race' ? (match.phase === 'results' ? match.currentIndex : match.currentIndex - 1) : null,
+    };
+    set({ match, lastEvents: events, feed, announce: announce || get().announce, screen: 'board', endHold });
+    // Persist as though the hold had already elapsed, so closing the app
+    // mid-hold reopens on the next step rather than on a dead board.
+    persistActive({ ...get(), screen });
+    setTimeout(() => {
+      if (get().endHold !== endHold) return; // a restart beat the timer to it
+      set({ endHold: null, screen });
+    }, END_HOLD_MS);
+    return;
+  }
+
   set({ match, lastEvents: events, feed, announce: announce || get().announce, screen });
   persistActive(get());
 }

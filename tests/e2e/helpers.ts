@@ -7,6 +7,7 @@ export async function startMatch(
     width?: number;
     height?: number;
     mines?: number;
+    raceLives?: number;
     arrangement?: 'Side-by-side' | 'Face-to-face' | 'Table';
   },
 ) {
@@ -21,6 +22,7 @@ export async function startMatch(
   if (opts.arrangement) {
     await page.getByRole('radio', { name: opts.arrangement }).click();
   }
+  if (opts.raceLives) await page.locator('#race-lives').fill(String(opts.raceLives));
   // Duel's default "first to 10 mines" target can exceed a small custom mine
   // count, which disables Start game — clamp it down whenever we shrink the board.
   if (opts.mode === 'Duel' && opts.mines) {

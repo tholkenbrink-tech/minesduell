@@ -36,6 +36,11 @@ export function RulesModal({ onClose }: { onClose: () => void }) {
             or on the middle of the board edge nearest it, to send it back.
           </p>
           <p>
+            <strong>When a round ends:</strong> the board stays up for a few seconds first, with the mine you hit or
+            the tile you misflagged still showing, before the results or the handover screen takes over. Giving up
+            skips that — there is nothing to look at.
+          </p>
+          <p>
             <strong>Numbers:</strong> a revealed tile shows how many mines are hiding in its 8 neighboring tiles.
             Revealing a tile with zero neighboring mines automatically opens up the surrounding safe area.
           </p>
